@@ -13,6 +13,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
+import PageHeader from "../components/PageHeader";
 
 type TaskStatus =
   | "todo"
@@ -34,9 +35,7 @@ interface Task {
   updatedAt: number;
 }
 
-interface TasksPageProps {
-  onBack?: () => void;
-}
+interface TasksPageProps {}
 
 const STORAGE_KEY = "nexora.tasks";
 
@@ -197,19 +196,19 @@ function getStatusIcon(status: TaskStatus) {
 function getStatusClass(status: TaskStatus) {
   switch (status) {
     case "completed":
-      return "border-emerald-500/20 bg-emerald-500/10 text-emerald-300";
+      return "border-neutral-300 bg-neutral-100 text-black";
 
     case "cancelled":
-      return "border-red-500/20 bg-red-500/10 text-red-300";
+      return "border-neutral-300 bg-neutral-100 text-neutral-700";
 
     case "stopped":
-      return "border-orange-500/20 bg-orange-500/10 text-orange-300";
+      return "border-neutral-300 bg-neutral-100 text-neutral-700";
 
     case "in-progress":
-      return "border-blue-500/20 bg-blue-500/10 text-blue-300";
+      return "border-black bg-black text-white";
 
     default:
-      return "border-white/[0.08] bg-white/[0.04] text-zinc-400";
+      return "border-neutral-200 bg-neutral-50 text-neutral-600";
   }
 }
 
@@ -250,7 +249,7 @@ function loadTasks(): Task[] {
   }
 }
 
-export default function TasksPage({ onBack }: TasksPageProps) {
+export default function TasksPage(_: TasksPageProps = {}) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
@@ -428,144 +427,134 @@ export default function TasksPage({ onBack }: TasksPageProps) {
   }
 
   return (
-    <div className="h-screen w-full overflow-hidden bg-[#0b0d0e] text-zinc-100">
+    <div className="h-full w-full overflow-hidden bg-[#fafafa] text-[#111111]">
       <div className="flex h-full flex-col">
         {/* Header */}
-        <header className="border-b border-white/[0.06] bg-[#0d0f10]">
-          <div className="flex h-[72px] items-center justify-between px-7">
-            <div className="flex items-center gap-4">
-              {onBack && (
-                <button
-                  onClick={onBack}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.025] text-zinc-500 transition hover:bg-white/[0.05] hover:text-zinc-200"
-                  title="Back"
-                >
-                  <ChevronDown size={17} className="rotate-90" />
-                </button>
-              )}
+        <PageHeader
+          icon={Check}
+          title="Tasks"
+          subtitle="Manage and schedule your tasks"
+          actions={
+            <>
+              <div className="hidden h-9 items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 sm:flex">
+                <span className="h-1.5 w-1.5 rounded-full bg-black" />
 
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#91a99a]/20 bg-[#91a99a]/10 text-[#a8bdad]">
-                    <Check size={16} />
-                  </div>
+                <span className="text-xs font-medium text-neutral-600">
+                  {tasks.length} tasks
+                </span>
+              </div>
 
-                  <h1 className="text-[17px] font-semibold tracking-[-0.01em] text-zinc-100">
-                    Tasks
-                  </h1>
-                </div>
+              <button
+                type="button"
+                onClick={openAddTask}
+                className="flex h-9 items-center gap-2 rounded-xl bg-black px-3.5 text-xs font-medium text-white shadow-sm transition-all hover:bg-neutral-800 active:scale-[0.98]"
+              >
+                <Plus size={15} strokeWidth={2} />
+                <span className="hidden sm:inline">Add Task</span>
+              </button>
+            </>
+          }
+        />
 
-                <p className="mt-1 pl-[42px] text-[12px] text-zinc-500">
-                  Manage and schedule your tasks
-                </p>
+        {/* Toolbar */}
+        <div className="shrink-0 border-b border-neutral-200 bg-white">
+          <div className="mx-auto w-full max-w-6xl px-5 py-4 sm:px-7">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="relative min-w-0 flex-1">
+                <Search
+                  size={15}
+                  strokeWidth={1.8}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"
+                />
+
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search tasks..."
+                  className="h-10 w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-9 pr-9 text-xs text-black outline-none transition-all placeholder:text-neutral-400 focus:border-neutral-400 focus:bg-white focus:ring-2 focus:ring-black/[0.04]"
+                />
+
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="absolute right-2.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-neutral-400 transition hover:bg-neutral-100 hover:text-black"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
             </div>
 
-            <button
-              onClick={openAddTask}
-              className="flex h-9 items-center gap-2 rounded-lg bg-[#91a99a] px-3.5 text-[12px] font-medium text-[#101412] transition hover:bg-[#a2b9aa]"
-            >
-              <Plus size={15} />
-              Add Task
-            </button>
-          </div>
-        </header>
+            {/* Filters */}
+            <div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-0.5">
+              {STATUS_OPTIONS.map((option) => {
+                const active = statusFilter === option.id;
 
-        {/* Toolbar */}
-        <div className="border-b border-white/[0.06] bg-[#0c0e0f]">
-          <div className="flex items-center gap-4 px-7 py-4">
-            {/* Search */}
-            <div className="relative min-w-0 flex-1">
-              <Search
-                size={15}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
-              />
+                const count =
+                  option.id === "all"
+                    ? counts.all
+                    : option.id === "todo"
+                      ? counts.todo
+                      : option.id === "in-progress"
+                        ? counts.inProgress
+                        : option.id === "stopped"
+                          ? counts.stopped
+                          : option.id === "completed"
+                            ? counts.completed
+                            : counts.cancelled;
 
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search tasks..."
-                className="h-9 w-full rounded-lg border border-white/[0.06] bg-white/[0.025] pl-9 pr-9 text-[12px] text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-[#91a99a]/30"
-              />
-
-              {search && (
-                <button
-                  onClick={() => setSearch("")}
-                  className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center justify-center text-zinc-600 hover:text-zinc-300"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className="flex items-center gap-1.5 overflow-x-auto px-7 pb-3">
-            {STATUS_OPTIONS.map((option) => {
-              const active = statusFilter === option.id;
-
-              const count =
-                option.id === "all"
-                  ? counts.all
-                  : option.id === "todo"
-                    ? counts.todo
-                    : option.id === "in-progress"
-                      ? counts.inProgress
-                      : option.id === "stopped"
-                        ? counts.stopped
-                        : option.id === "completed"
-                          ? counts.completed
-                          : counts.cancelled;
-
-              return (
-                <button
-                  key={option.id}
-                  onClick={() => setStatusFilter(option.id)}
-                  className={[
-                    "flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-[11px] transition",
-                    active
-                      ? "bg-[#91a99a]/10 text-[#a8bdad]"
-                      : "text-zinc-500 hover:bg-white/[0.035] hover:text-zinc-300",
-                  ].join(" ")}
-                >
-                  {option.label}
-
-                  <span
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setStatusFilter(option.id)}
                     className={[
-                      "rounded px-1.5 py-0.5 text-[9px]",
+                      "flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-medium transition-all",
                       active
-                        ? "bg-[#91a99a]/10 text-[#a8bdad]"
-                        : "bg-white/[0.035] text-zinc-600",
+                        ? "border-black bg-black text-white"
+                        : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300 hover:bg-neutral-50 hover:text-black",
                     ].join(" ")}
                   >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+                    {option.label}
+
+                    <span
+                      className={[
+                        "min-w-[18px] rounded-md px-1 py-0.5 text-center text-[9px]",
+                        active
+                          ? "bg-white/15 text-white"
+                          : "bg-neutral-100 text-neutral-500",
+                      ].join(" ")}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         {/* Content */}
         <main className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-5xl px-7 py-6">
+          <div className="mx-auto w-full max-w-6xl px-5 py-6 sm:px-7">
             {filteredTasks.length === 0 ? (
-              <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.025] text-zinc-600">
+              <div className="flex min-h-[420px] flex-col items-center justify-center rounded-2xl border border-neutral-200 bg-white px-6 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-neutral-200 bg-neutral-50 text-neutral-500">
                   {search || statusFilter !== "all" ? (
-                    <Search size={22} />
+                    <Search size={22} strokeWidth={1.7} />
                   ) : (
-                    <Check size={22} />
+                    <Check size={22} strokeWidth={1.8} />
                   )}
                 </div>
 
-                <h2 className="mt-4 text-[14px] font-medium text-zinc-300">
+                <h2 className="mt-4 text-sm font-semibold text-black">
                   {search || statusFilter !== "all"
                     ? "No tasks found"
                     : "No tasks yet"}
                 </h2>
 
-                <p className="mt-1.5 max-w-sm text-[12px] leading-5 text-zinc-600">
+                <p className="mt-1.5 max-w-sm text-xs leading-5 text-neutral-500">
                   {search || statusFilter !== "all"
                     ? "Try changing your search or status filter."
                     : "Create your first task to start scheduling work."}
@@ -573,8 +562,9 @@ export default function TasksPage({ onBack }: TasksPageProps) {
 
                 {!search && statusFilter === "all" && (
                   <button
+                    type="button"
                     onClick={openAddTask}
-                    className="mt-5 flex h-9 items-center gap-2 rounded-lg border border-white/[0.07] bg-white/[0.035] px-3.5 text-[12px] text-zinc-300 transition hover:bg-white/[0.06] hover:text-white"
+                    className="mt-5 flex h-9 items-center gap-2 rounded-xl bg-black px-3.5 text-xs font-medium text-white transition hover:bg-neutral-800"
                   >
                     <Plus size={14} />
                     Create Task
@@ -582,7 +572,7 @@ export default function TasksPage({ onBack }: TasksPageProps) {
                 )}
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {filteredTasks.map((task) => {
                   const targetModel = MODEL_OPTIONS.find(
                     (model) => model.id === task.target,
@@ -592,51 +582,48 @@ export default function TasksPage({ onBack }: TasksPageProps) {
                     <div
                       key={task.id}
                       className={[
-                        "group rounded-xl border bg-[#0e1011] transition",
+                        "group rounded-2xl border bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all duration-200",
                         task.status === "completed"
-                          ? "border-emerald-500/[0.08]"
-                          : "border-white/[0.06] hover:border-white/[0.10]",
+                          ? "border-neutral-200"
+                          : "border-neutral-200 hover:border-neutral-300 hover:shadow-[0_8px_24px_rgba(0,0,0,0.05)]",
                       ].join(" ")}
                     >
-                      <div className="flex items-start gap-4 p-4">
-                        {/* Complete */}
+                      <div className="flex items-start gap-4 p-4 sm:p-5">
                         <button
+                          type="button"
                           onClick={() => toggleCompleted(task)}
-                          className={[
-                            "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition",
+                          className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-all ${
                             task.status === "completed"
-                              ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
-                              : "border-white/[0.10] text-transparent hover:border-[#91a99a]/40 hover:text-[#91a99a]",
-                          ]}
+                              ? "border-black bg-black text-white"
+                              : "border-neutral-300 text-transparent hover:border-black hover:text-black"
+                          }`}
                           title={
                             task.status === "completed"
                               ? "Mark as todo"
                               : "Mark as completed"
                           }
                         >
-                          <Check size={13} />
+                          <Check size={13} strokeWidth={2.5} />
                         </button>
-
-                        {/* Main */}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
                               <h3
                                 className={[
-                                  "truncate text-[13px] font-medium",
+                                  "truncate text-[13px] font-semibold tracking-[-0.01em]",
                                   task.status === "completed"
-                                    ? "text-zinc-500 line-through"
-                                    : "text-zinc-200",
+                                    ? "text-neutral-400 line-through"
+                                    : "text-black",
                                 ].join(" ")}
                               >
                                 {task.title}
                               </h3>
 
-                              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
                                 {/* Status */}
                                 <span
                                   className={[
-                                    "flex h-6 items-center gap-1.5 rounded-md border px-2 text-[10px]",
+                                    "flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-medium",
                                     getStatusClass(task.status),
                                   ].join(" ")}
                                 >
@@ -645,21 +632,21 @@ export default function TasksPage({ onBack }: TasksPageProps) {
                                 </span>
 
                                 {/* Timing */}
-                                <span className="flex h-6 items-center gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.025] px-2 text-[10px] text-zinc-500">
+                                <span className="flex h-7 items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 text-[10px] text-neutral-600">
                                   <CalendarClock size={12} />
                                   {formatTiming(task.timing)}
                                 </span>
 
                                 {/* Frequency */}
-                                <span className="flex h-6 items-center gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.025] px-2 text-[10px] text-zinc-500">
+                                <span className="flex h-7 items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 text-[10px] text-neutral-600">
                                   <Clock3 size={12} />
                                   {getFrequencyLabel(task.frequency)}
                                 </span>
 
                                 {/* Target */}
-                                <span className="flex h-6 items-center gap-1.5 rounded-md border border-[#91a99a]/10 bg-[#91a99a]/[0.04] px-2 text-[10px] text-[#91a99a]">
+                                <span className="flex h-7 items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 text-[10px] font-medium text-neutral-700">
                                   <Zap size={11} />
-                                  Target: {targetModel?.name || task.target}
+                                  {targetModel?.name || task.target}
                                 </span>
                               </div>
                             </div>
@@ -667,68 +654,75 @@ export default function TasksPage({ onBack }: TasksPageProps) {
                             {/* More */}
                             <div className="relative shrink-0">
                               <button
+                                type="button"
                                 onClick={() =>
                                   setOpenMenu(
                                     openMenu === task.id ? null : task.id,
                                   )
                                 }
-                                className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-600 opacity-0 transition hover:bg-white/[0.05] hover:text-zinc-300 group-hover:opacity-100"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-neutral-400 opacity-0 transition-all hover:border-neutral-200 hover:bg-neutral-50 hover:text-black group-hover:opacity-100"
                               >
-                                <MoreHorizontal size={16} />
+                                <MoreHorizontal size={17} />
                               </button>
 
                               {openMenu === task.id && (
-                                <div className="absolute right-0 top-8 z-20 w-40 overflow-hidden rounded-lg border border-white/[0.08] bg-[#151718] p-1 shadow-2xl">
+                                <div className="absolute right-0 top-10 z-20 w-44 overflow-hidden rounded-xl border border-neutral-200 bg-white p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.12)]">
                                   <button
+                                    type="button"
                                     onClick={() => openEditTask(task)}
-                                    className="flex w-full items-center rounded-md px-2.5 py-2 text-left text-[11px] text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-200"
+                                    className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[11px] font-medium text-neutral-600 transition hover:bg-neutral-50 hover:text-black"
                                   >
                                     Edit Task
                                   </button>
 
-                                  <div className="my-1 h-px bg-white/[0.05]" />
+                                  <div className="my-1 h-px bg-neutral-100" />
 
                                   <button
+                                    type="button"
                                     onClick={() =>
                                       updateStatus(task.id, "in-progress")
                                     }
-                                    className="flex w-full items-center rounded-md px-2.5 py-2 text-left text-[11px] text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-200"
+                                    className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[11px] text-neutral-600 transition hover:bg-neutral-50 hover:text-black"
                                   >
                                     Mark In Progress
                                   </button>
 
                                   <button
+                                    type="button"
                                     onClick={() =>
                                       updateStatus(task.id, "stopped")
                                     }
-                                    className="flex w-full items-center rounded-md px-2.5 py-2 text-left text-[11px] text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-200"
+                                    className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[11px] text-neutral-600 transition hover:bg-neutral-50 hover:text-black"
                                   >
                                     Stop Task
                                   </button>
 
                                   <button
+                                    type="button"
                                     onClick={() =>
                                       updateStatus(task.id, "cancelled")
                                     }
-                                    className="flex w-full items-center rounded-md px-2.5 py-2 text-left text-[11px] text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-200"
+                                    className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[11px] text-neutral-600 transition hover:bg-neutral-50 hover:text-black"
                                   >
                                     Cancel Task
                                   </button>
 
                                   <button
+                                    type="button"
                                     onClick={() =>
                                       updateStatus(task.id, "completed")
                                     }
-                                    className="flex w-full items-center rounded-md px-2.5 py-2 text-left text-[11px] text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-200"
+                                    className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-[11px] text-neutral-600 transition hover:bg-neutral-50 hover:text-black"
                                   >
                                     Complete Task
                                   </button>
 
-                                  <div className="my-1 h-px bg-white/[0.05]" />
+                                  <div className="my-1 h-px bg-neutral-100" />
 
                                   <button
+                                    type="button"
                                     onClick={() => deleteTask(task.id)}
-                                    className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[11px] text-red-400 hover:bg-red-500/[0.07]"
+                                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-[11px] font-medium text-neutral-600 transition hover:bg-neutral-100 hover:text-black"
                                   >
                                     <Trash2 size={13} />
                                     Delete Task
@@ -751,100 +745,126 @@ export default function TasksPage({ onBack }: TasksPageProps) {
       {/* Add / Edit Modal */}
       {isAddOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-[2px]"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 backdrop-blur-[3px]"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
               closeModal();
             }
           }}
         >
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/[0.08] bg-[#121415] shadow-2xl">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
-              <div>
-                <h2 className="text-[14px] font-semibold text-zinc-100">
-                  {editingTask ? "Edit Task" : "Create Task"}
-                </h2>
+            <div className="flex items-start justify-between border-b border-neutral-200 px-5 py-5 sm:px-6">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black text-white">
+                  {editingTask ? (
+                    <Zap size={17} strokeWidth={1.8} />
+                  ) : (
+                    <Plus size={18} strokeWidth={2} />
+                  )}
+                </div>
 
-                <p className="mt-1 text-[11px] text-zinc-600">
-                  Configure when and how this task should run.
-                </p>
+                <div>
+                  <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-black">
+                    {editingTask ? "Edit Task" : "Create Task"}
+                  </h2>
+
+                  <p className="mt-1 text-xs leading-5 text-neutral-500">
+                    {editingTask
+                      ? "Update the task details and execution settings."
+                      : "Set up what Nexora should do and when it should run."}
+                  </p>
+                </div>
               </div>
 
               <button
+                type="button"
                 onClick={closeModal}
-                className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-600 hover:bg-white/[0.05] hover:text-zinc-300"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-transparent text-neutral-400 transition hover:border-neutral-200 hover:bg-neutral-50 hover:text-black"
+                title="Close"
               >
                 <X size={16} />
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="space-y-5 p-5">
+            <div className="space-y-6 p-5 sm:p-6">
               {/* Title */}
               <div>
-                <label className="mb-2 block text-[11px] font-medium text-zinc-400">
-                  Title
+                <label className="mb-2 block text-xs font-semibold text-black">
+                  Task title
                 </label>
 
-                <input
-                  autoFocus
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && title.trim()) {
-                      saveTask();
-                    }
-                  }}
-                  placeholder="What should Nexora do?"
-                  className="h-10 w-full rounded-lg border border-white/[0.07] bg-white/[0.025] px-3 text-[12px] text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-[#91a99a]/30"
-                />
+                <div className="relative">
+                  <input
+                    autoFocus
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && title.trim()) {
+                        saveTask();
+                      }
+                    }}
+                    placeholder="What should Nexora do?"
+                    className="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 text-xs text-black outline-none transition-all placeholder:text-neutral-400 focus:border-neutral-400 focus:bg-white focus:ring-2 focus:ring-black/[0.04]"
+                  />
+                </div>
+
+                <p className="mt-1.5 text-[10px] text-neutral-400">
+                  Give your task a short and clear name.
+                </p>
               </div>
 
               {/* Timing */}
               <div>
-                <label className="mb-2 block text-[11px] font-medium text-zinc-400">
-                  Add Timing
-                </label>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-black">
+                    Schedule
+                  </label>
+
+                  <span className="text-[10px] text-neutral-400">Optional</span>
+                </div>
 
                 <div className="relative">
                   <CalendarClock
-                    size={14}
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
+                    size={15}
+                    strokeWidth={1.8}
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400"
                   />
 
                   <input
                     type="datetime-local"
                     value={timing}
                     onChange={(event) => setTiming(event.target.value)}
-                    className="h-10 w-full rounded-lg border border-white/[0.07] bg-white/[0.025] px-3 pl-9 text-[12px] text-zinc-300 outline-none focus:border-[#91a99a]/30"
+                    className="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 pl-10 text-xs text-black outline-none transition-all focus:border-neutral-400 focus:bg-white focus:ring-2 focus:ring-black/[0.04]"
                   />
                 </div>
 
-                <p className="mt-1.5 text-[10px] text-zinc-600">
+                <p className="mt-1.5 text-[10px] text-neutral-400">
                   Choose when this task should start.
                 </p>
               </div>
 
               {/* Frequency */}
               <div>
-                <label className="mb-2 block text-[11px] font-medium text-zinc-400">
+                <label className="mb-2 block text-xs font-semibold text-black">
                   Frequency
                 </label>
 
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {FREQUENCY_OPTIONS.map((option) => {
                     const active = frequency === option.id;
 
                     return (
                       <button
+                        type="button"
                         key={option.id}
                         onClick={() => setFrequency(option.id)}
                         className={[
-                          "h-9 rounded-lg border text-[11px] transition",
+                          "flex h-10 items-center justify-center rounded-xl border text-[11px] font-medium transition-all",
                           active
-                            ? "border-[#91a99a]/25 bg-[#91a99a]/10 text-[#a8bdad]"
-                            : "border-white/[0.06] bg-white/[0.02] text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300",
+                            ? "border-black bg-black text-white shadow-sm"
+                            : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300 hover:bg-neutral-50 hover:text-black",
                         ].join(" ")}
                       >
                         {option.label}
@@ -856,21 +876,21 @@ export default function TasksPage({ onBack }: TasksPageProps) {
 
               {/* Target */}
               <div>
-                <label className="mb-2 block text-[11px] font-medium text-zinc-400">
-                  Target
+                <label className="mb-2 block text-xs font-semibold text-black">
+                  Execution model
                 </label>
 
                 <div className="relative">
                   <select
                     value={target}
                     onChange={(event) => setTarget(event.target.value)}
-                    className="h-10 w-full appearance-none rounded-lg border border-white/[0.07] bg-white/[0.025] px-3 pr-9 text-[12px] text-zinc-300 outline-none focus:border-[#91a99a]/30"
+                    className="h-11 w-full appearance-none rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 pr-10 text-xs text-black outline-none transition-all focus:border-neutral-400 focus:bg-white focus:ring-2 focus:ring-black/[0.04]"
                   >
                     {MODEL_OPTIONS.map((model) => (
                       <option
                         key={model.id}
                         value={model.id}
-                        className="bg-[#151718]"
+                        className="bg-white text-black"
                       >
                         {model.name} — {model.provider}
                       </option>
@@ -878,34 +898,64 @@ export default function TasksPage({ onBack }: TasksPageProps) {
                   </select>
 
                   <ChevronDown
-                    size={14}
-                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600"
+                    size={15}
+                    strokeWidth={1.8}
+                    className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400"
                   />
                 </div>
 
-                <p className="mt-1.5 text-[10px] text-zinc-600">
+                <p className="mt-1.5 text-[10px] text-neutral-400">
                   Select the model that will execute this task.
                 </p>
+              </div>
+
+              {/* Summary */}
+              <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3.5">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-neutral-600 shadow-sm">
+                    <Zap size={13} />
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold text-black">
+                      Task summary
+                    </p>
+
+                    <p className="mt-1 text-[10px] leading-4 text-neutral-500">
+                      {title.trim()
+                        ? title.trim()
+                        : "Your task title will appear here."}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-2 border-t border-white/[0.06] px-5 py-4">
-              <button
-                onClick={closeModal}
-                className="h-9 rounded-lg px-3.5 text-[11px] text-zinc-500 transition hover:bg-white/[0.04] hover:text-zinc-300"
-              >
-                Cancel
-              </button>
+            <div className="flex items-center justify-between gap-3 border-t border-neutral-200 bg-neutral-50/70 px-5 py-4 sm:px-6">
+              <p className="hidden text-[10px] text-neutral-400 sm:block">
+                Press Enter to save
+              </p>
 
-              <button
-                onClick={saveTask}
-                disabled={!title.trim()}
-                className="flex h-9 items-center gap-2 rounded-lg bg-[#91a99a] px-4 text-[11px] font-medium text-[#101412] transition hover:bg-[#a2b9aa] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Check size={14} />
-                {editingTask ? "Save Changes" : "Create Task"}
-              </button>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="h-9 rounded-xl border border-neutral-200 bg-white px-3.5 text-[11px] font-medium text-neutral-600 transition hover:border-neutral-300 hover:bg-neutral-50 hover:text-black"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={saveTask}
+                  disabled={!title.trim()}
+                  className="flex h-9 items-center gap-2 rounded-xl bg-black px-4 text-[11px] font-medium text-white shadow-sm transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Check size={14} strokeWidth={2.2} />
+                  {editingTask ? "Save Changes" : "Create Task"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

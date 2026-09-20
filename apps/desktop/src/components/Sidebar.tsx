@@ -1,7 +1,6 @@
 import {
   Archive,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   Folder,
   FolderOpen,
@@ -19,7 +18,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Chat, Project } from "../types";
-import type { SettingsSection } from "../App";
+import type { SettingsSection, ActivePage } from "../App";
 
 interface SidebarProps {
   chats: Chat[];
@@ -27,6 +26,7 @@ interface SidebarProps {
 
   activeChatId: string | null;
   activeProjectId: string | null;
+  activePage: ActivePage;
 
   onSelectChat: (chatId: string) => void;
   onSelectProject: (projectId: string) => void;
@@ -45,19 +45,13 @@ interface SidebarProps {
 
   onOpenSettings?: (section?: SettingsSection) => void;
 
-  isSettingsOpen?: boolean;
-  settingsSection?: SettingsSection;
   onSelectSettingsSection?: (section: SettingsSection) => void;
-  onCloseSettings?: () => void;
 
-  isSkillsOpen?: boolean;
   onOpenSkills?: () => void;
-  onCloseSkills?: () => void;
 
-  // Tasks
-  isTasksOpen?: boolean;
+  onOpenExtensions?: () => void;
+
   onOpenTasks?: () => void;
-  onCloseTasks?: () => void;
 }
 
 type CollapsibleSectionProps = {
@@ -98,22 +92,37 @@ function CollapsibleSection({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <section className="my-4">
+    <section className="mt-4">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="mb-1.5 flex w-full items-center gap-1 px-1.5 text-[8px] font-semibold uppercase tracking-[0.18em] text-[#69716d] transition-colors hover:text-[#929b96]"
+        className="
+          flex
+          w-full
+          items-center
+          justify-between
+          rounded-md
+          px-2
+          py-1
+          text-[10px]
+          font-semibold
+          uppercase
+          tracking-[0.14em]
+          text-neutral-400
+          transition
+          hover:text-neutral-700
+        "
       >
-        {open ? (
-          <ChevronDown size={9} strokeWidth={2} />
-        ) : (
-          <ChevronRight size={9} strokeWidth={2} />
-        )}
+        <span>{title}</span>
 
-        <span className="text-xs">{title}</span>
+        {open ? (
+          <ChevronDown className="h-3.5 w-3.5" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5" />
+        )}
       </button>
 
-      {open && children}
+      {open && <div className="mt-1.5">{children}</div>}
     </section>
   );
 }
@@ -126,67 +135,23 @@ function FixedSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mb-4">
-      <div className="mb-1.5 flex items-center px-1.5 text-xs uppercase tracking-[0.18em] text-[#69716d]">
+    <section className="mt-4">
+      <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
         {title}
       </div>
 
-      {children}
+      <div className="mt-1.5">{children}</div>
     </section>
   );
 }
 
 function EmptySection({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-2 py-1.5 text-[10px] text-[#5f6663]">{children}</div>
+    <div className="px-2 py-2 text-[12px] text-neutral-400">
+      {children}
+    </div>
   );
 }
-
-const settingsItems: Array<{
-  id: SettingsSection;
-  label: string;
-}> = [
-  {
-    id: "general",
-    label: "General",
-  },
-  {
-    id: "appearance",
-    label: "Appearance",
-  },
-  {
-    id: "shortcuts",
-    label: "Keyboard Shortcuts",
-  },
-  {
-    id: "hardware",
-    label: "Hardware",
-  },
-  {
-    id: "privacy",
-    label: "Privacy",
-  },
-  {
-    id: "web-search",
-    label: "Web Search",
-  },
-  {
-    id: "attachments",
-    label: "Attachments",
-  },
-  {
-    id: "integrations",
-    label: "Integrations",
-  },
-  {
-    id: "notifications",
-    label: "Notifications",
-  },
-  {
-    id: "data-storage",
-    label: "Data & Storage",
-  },
-];
 
 export default function Sidebar({
   chats,
@@ -194,6 +159,7 @@ export default function Sidebar({
 
   activeChatId,
   activeProjectId,
+  activePage,
 
   onSelectChat,
   onSelectProject,
@@ -211,54 +177,77 @@ export default function Sidebar({
   onToggleProjectPin,
 
   onOpenSettings,
-
-  isSettingsOpen = false,
-  settingsSection = "general",
-  onSelectSettingsSection,
-  onCloseSettings,
-
-  isSkillsOpen = false,
   onOpenSkills,
-  onCloseSkills,
-
-  isTasksOpen = false,
+  onOpenExtensions,
   onOpenTasks,
-  onCloseTasks,
 }: SidebarProps) {
   const [search, setSearch] = useState("");
-
   const [searchOpen, setSearchOpen] = useState(false);
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
-  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [deleteTarget, setDeleteTarget] =
+    useState<DeleteTarget | null>(null);
 
-  const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
+  const [renameTarget, setRenameTarget] =
+    useState<RenameTarget | null>(null);
 
   const [renameValue, setRenameValue] = useState("");
 
   const filteredChats = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    const result = query
-      ? chats.filter((chat) => chat.title.toLowerCase().includes(query))
-      : chats;
+    return [...chats]
+      .filter((chat) => {
+        if (!query) {
+          return true;
+        }
 
-    return [...result].sort(
-      (a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)),
-    );
+        return chat.title?.toLowerCase().includes(query);
+      })
+      .sort((a, b) => {
+        const aPinned = Boolean(
+          (a as Chat & { pinned?: boolean }).pinned,
+        );
+
+        const bPinned = Boolean(
+          (b as Chat & { pinned?: boolean }).pinned,
+        );
+
+        if (aPinned !== bPinned) {
+          return aPinned ? -1 : 1;
+        }
+
+        return 0;
+      });
   }, [chats, search]);
 
   const filteredProjects = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    const result = query
-      ? projects.filter((project) => project.name.toLowerCase().includes(query))
-      : projects;
+    return [...projects]
+      .filter((project) => {
+        if (!query) {
+          return true;
+        }
 
-    return [...result].sort(
-      (a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)),
-    );
+        return project.name?.toLowerCase().includes(query);
+      })
+      .sort((a, b) => {
+        const aPinned = Boolean(
+          (a as Project & { pinned?: boolean }).pinned,
+        );
+
+        const bPinned = Boolean(
+          (b as Project & { pinned?: boolean }).pinned,
+        );
+
+        if (aPinned !== bPinned) {
+          return aPinned ? -1 : 1;
+        }
+
+        return 0;
+      });
   }, [projects, search]);
 
   const closeSearch = () => {
@@ -272,7 +261,7 @@ export default function Sidebar({
     setDeleteTarget({
       type: "chat",
       id: chat.id,
-      name: chat.title,
+      name: chat.title || "Untitled conversation",
     });
   };
 
@@ -282,7 +271,7 @@ export default function Sidebar({
     setDeleteTarget({
       type: "project",
       id: project.id,
-      name: project.name,
+      name: project.name || "Untitled project",
     });
   };
 
@@ -306,10 +295,10 @@ export default function Sidebar({
     setRenameTarget({
       type: "chat",
       id: chat.id,
-      name: chat.title,
+      name: chat.title || "",
     });
 
-    setRenameValue(chat.title);
+    setRenameValue(chat.title || "");
   };
 
   const openRenameProject = (project: Project) => {
@@ -318,10 +307,10 @@ export default function Sidebar({
     setRenameTarget({
       type: "project",
       id: project.id,
-      name: project.name,
+      name: project.name || "",
     });
 
-    setRenameValue(project.name);
+    setRenameValue(project.name || "");
   };
 
   const closeRename = () => {
@@ -349,887 +338,874 @@ export default function Sidebar({
     closeRename();
   };
 
-  const handleOpenSettings = (section: SettingsSection = "general") => {
+  const handleOpenSettings = () => {
     setOpenMenu(null);
-    setSearchOpen(false);
-
-    onOpenSettings?.(section);
+    onOpenSettings?.("general");
   };
 
-  const handleOpenSkills = () => {
-    setOpenMenu(null);
-    setSearchOpen(false);
+  const renderBuildNavigation = () => (
+    <FixedSection title="Build">
+      <div className="space-y-0.5">
+        {/* Skills */}
+        <button
+          type="button"
+          onClick={() => {
+            setOpenMenu(null);
+            onOpenSkills?.();
+          }}
+          className={[
+            "group flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left text-[12px] transition",
+            activePage === "skills"
+              ? "border-[#dfe5e1] bg-[#edf1ee] font-semibold text-[#111111]"
+              : "border-transparent text-neutral-600 hover:border-neutral-200 hover:bg-neutral-50 hover:text-black",
+          ].join(" ")}
+        >
+          <Sparkles
+            className={[
+              "h-4 w-4 shrink-0 transition",
+              activePage === "skills"
+                ? "text-[#65796c]"
+                : "text-neutral-400 group-hover:text-neutral-600",
+            ].join(" ")}
+          />
 
-    onOpenSkills?.();
-  };
+          <span className="truncate">Skills</span>
 
-  const handleOpenTasks = () => {
-    setOpenMenu(null);
-    setSearchOpen(false);
+          {activePage === "skills" && (
+            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#65796c]" />
+          )}
+        </button>
 
-    onOpenTasks?.();
-  };
+        {/* Extensions */}
+        <button
+          type="button"
+          onClick={() => {
+            setOpenMenu(null);
+            onOpenExtensions?.();
+          }}
+          className={[
+            "group flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left text-[12px] transition",
+            activePage === "extensions"
+              ? "border-[#dfe5e1] bg-[#edf1ee] font-semibold text-[#111111]"
+              : "border-transparent text-neutral-600 hover:border-neutral-200 hover:bg-neutral-50 hover:text-black",
+          ].join(" ")}
+        >
+          <Puzzle
+            className={[
+              "h-4 w-4 shrink-0 transition",
+              activePage === "extensions"
+                ? "text-[#65796c]"
+                : "text-neutral-400 group-hover:text-neutral-600",
+            ].join(" ")}
+          />
 
-  const handleBackFromSkills = () => {
-    onCloseSkills?.();
-  };
+          <span className="truncate">Extensions</span>
 
-  const handleBackFromTasks = () => {
-    onCloseTasks?.();
-  };
+          {activePage === "extensions" && (
+            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#65796c]" />
+          )}
+        </button>
 
-  const handleBackFromSettings = () => {
-    onCloseSettings?.();
-  };
+        {/* Tasks */}
+        <button
+          type="button"
+          onClick={() => {
+            setOpenMenu(null);
+            onOpenTasks?.();
+          }}
+          className={[
+            "group flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left text-[12px] transition",
+            activePage === "tasks"
+              ? "border-[#dfe5e1] bg-[#edf1ee] font-semibold text-[#111111]"
+              : "border-transparent text-neutral-600 hover:border-neutral-200 hover:bg-neutral-50 hover:text-black",
+          ].join(" ")}
+        >
+          <Archive
+            className={[
+              "h-4 w-4 shrink-0 transition",
+              activePage === "tasks"
+                ? "text-[#65796c]"
+                : "text-neutral-400 group-hover:text-neutral-600",
+            ].join(" ")}
+          />
+
+          <span className="truncate">Tasks</span>
+
+          {activePage === "tasks" && (
+            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#65796c]" />
+          )}
+        </button>
+      </div>
+    </FixedSection>
+  );
 
   return (
-    <>
-      <aside className="flex h-full w-[250px] shrink-0 flex-col border-r border-[#262b29] bg-[#0d0f10] text-[#e7e9e8]">
-        {/* =====================================================
-            BRAND AREA
-        ====================================================== */}
-        <div className="relative shrink-0 px-3 pb-3 pt-4">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-[118px] overflow-hidden">
-            <div className="absolute -left-10 -top-16 h-40 w-40 rounded-full bg-[#91a99a]/[0.045] blur-3xl" />
+    <aside
+      className="
+        flex
+        h-full
+        w-[250px]
+        shrink-0
+        flex-col
+        border-r
+        border-[#e7e7e7]
+        bg-white
+        text-[#111111]
+      "
+    >
+      <div className="flex min-h-0 flex-1 flex-col px-3 pt-3">
+        {/* Top actions */}
+        <div className="px-1 pb-2">
+          <button
+            type="button"
+            onClick={onNewChat}
+            className="
+              group
+              flex
+              w-full
+              min-w-0
+              items-center
+              gap-2.5
+              rounded-xl
+              border
+              border-neutral-200
+              bg-neutral-50
+              px-3
+              py-2.5
+              text-left
+              text-[12px]
+              font-medium
+              text-neutral-800
+              shadow-[0_1px_2px_rgba(0,0,0,0.03)]
+              transition-all
+              hover:border-neutral-300
+              hover:bg-white
+              hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)]
+              active:scale-[0.985]
+            "
+          >
+            <span
+              className="
+                flex
+                h-6
+                w-6
+                shrink-0
+                items-center
+                justify-center
+                rounded-lg
+                bg-[#111111]
+                text-white
+                transition-transform
+                duration-200
+                group-hover:scale-105
+              "
+            >
+              <SquarePen className="h-3.5 w-3.5" />
+            </span>
 
-            <div className="absolute -right-12 top-[-25px] h-32 w-32 rounded-full bg-[#c6a96b]/[0.035] blur-3xl" />
+            <span className="min-w-0 flex-1 truncate">
+              New conversation
+            </span>
 
-            <div
-              className="absolute inset-0 opacity-[0.11]"
-              style={{
-                backgroundImage: `
-                  linear-gradient(to right, #7b8881 1px, transparent 1px),
-                  linear-gradient(to bottom, #7b8881 1px, transparent 1px)
-                `,
-                backgroundSize: "24px 24px",
-                maskImage:
-                  "linear-gradient(to bottom, black 0%, black 35%, transparent 100%)",
-                WebkitMaskImage:
-                  "linear-gradient(to bottom, black 0%, black 35%, transparent 100%)",
-              }}
+            <Plus
+              className="
+                h-3.5
+                w-3.5
+                shrink-0
+                text-neutral-400
+                transition
+                group-hover:text-black
+              "
             />
+          </button>
 
-            <div className="absolute left-[-34px] top-[14px] h-[92px] w-[92px] rounded-full border border-[#87978e]/[0.12]" />
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Search"
+            className="
+              mt-1
+              flex
+              w-full
+              items-center
+              gap-2.5
+              rounded-lg
+              px-2.5
+              py-2
+              text-[12px]
+              text-neutral-500
+              transition
+              hover:bg-neutral-50
+              hover:text-black
+            "
+          >
+            <Search className="h-4 w-4 shrink-0" />
 
-            <div className="absolute right-[-46px] top-[5px] h-[112px] w-[112px] rounded-full border border-[#87978e]/[0.09]" />
+            <span>Search</span>
 
-            <div className="absolute right-[20px] top-[52px] h-px w-[82px] rotate-[-27deg] bg-[#c6a96b]/[0.13]" />
-
-            <div className="absolute left-[18px] top-[71px] h-px w-[70px] rotate-[18deg] bg-[#87978e]/[0.14]" />
-
-            <span className="absolute left-[31px] top-[24px] h-1 w-1 rounded-full bg-[#a5b8ac]/40" />
-
-            <span className="absolute right-[35px] top-[29px] h-1 w-1 rounded-full bg-[#c6a96b]/35" />
-
-            <span className="absolute right-[68px] top-[76px] h-[3px] w-[3px] rounded-full bg-[#a5b8ac]/35" />
-          </div>
-
-          <div className="relative z-10 flex h-[74px] items-center justify-center">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2">
-                <span className="h-px w-5 bg-gradient-to-r from-transparent to-[#68746e]/50" />
-
-                <span className="text-[14px] font-semibold tracking-[0.34em] text-[#e1e5e3]">
-                  NEXORA
-                </span>
-
-                <span className="h-px w-5 bg-gradient-to-l from-transparent to-[#68746e]/50" />
-              </div>
-
-              <div className="mt-1.5 flex items-center justify-center gap-1.5">
-                <span className="h-1 w-1 rounded-full bg-[#91a99a]/60" />
-
-                <span className="text-[7px] font-medium uppercase tracking-[0.3em] text-[#66706b]">
-                  Intelligent Workspace
-                </span>
-
-                <span className="h-1 w-1 rounded-full bg-[#c6a96b]/45" />
-              </div>
-            </div>
-          </div>
-
-          <div className="pointer-events-none absolute bottom-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-[#343c38] to-transparent" />
-
-          {/* =====================================================
-              SETTINGS / SKILLS / TASKS HEADER
-          ====================================================== */}
-          {isSettingsOpen ? (
-            <div className="relative mt-1">
-              <button
-                type="button"
-                onClick={handleBackFromSettings}
-                className="group flex h-[36px] w-full items-center gap-2 rounded-[8px] px-2 text-[#858e89] transition-colors hover:bg-[#151a18] hover:text-[#c5ccc8]"
-              >
-                <span className="flex h-[22px] w-[22px] items-center justify-center rounded-[6px] border border-[#303834] bg-[#171c19] transition-colors group-hover:border-[#48534d]">
-                  <ChevronLeft size={13} strokeWidth={1.8} />
-                </span>
-
-                <span className="text-[11px]">Back</span>
-              </button>
-            </div>
-          ) : isSkillsOpen ? (
-            <div className="relative mt-1">
-              <button
-                type="button"
-                onClick={handleBackFromSkills}
-                className="group flex h-[36px] w-full items-center gap-2 rounded-[8px] px-2 text-[#858e89] transition-colors hover:bg-[#151a18] hover:text-[#c5ccc8]"
-              >
-                <span className="flex h-[22px] w-[22px] items-center justify-center rounded-[6px] border border-[#303834] bg-[#171c19] transition-colors group-hover:border-[#48534d]">
-                  <ChevronLeft size={13} strokeWidth={1.8} />
-                </span>
-
-                <span className="text-[11px]">Back</span>
-              </button>
-            </div>
-          ) : isTasksOpen ? (
-            <div className="relative mt-1">
-              <button
-                type="button"
-                onClick={handleBackFromTasks}
-                className="group flex h-[36px] w-full items-center gap-2 rounded-[8px] px-2 text-[#858e89] transition-colors hover:bg-[#151a18] hover:text-[#c5ccc8]"
-              >
-                <span className="flex h-[22px] w-[22px] items-center justify-center rounded-[6px] border border-[#303834] bg-[#171c19] transition-colors group-hover:border-[#48534d]">
-                  <ChevronLeft size={13} strokeWidth={1.8} />
-                </span>
-
-                <span className="text-[11px]">Back</span>
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* New conversation */}
-              <button
-                type="button"
-                onClick={onNewChat}
-                className="group relative mt-1 flex h-[40px] w-full items-center gap-2.5 overflow-hidden rounded-[10px] border border-[#39433e] bg-[#171c19] px-2.5 text-left shadow-[0_8px_22px_rgba(0,0,0,0.16)] transition-all duration-200 hover:border-[#62746a] hover:bg-[#1b211e] hover:shadow-[0_10px_28px_rgba(0,0,0,0.25)]"
-              >
-                <span className="pointer-events-none absolute inset-y-0 -left-[55%] w-[55%] skew-x-[-20deg] bg-gradient-to-r from-transparent via-[#9bb1a3]/[0.08] to-transparent transition-all duration-500 group-hover:left-[115%]" />
-
-                <span className="absolute bottom-2 left-0 top-2 w-[2px] rounded-full bg-[#8da696]/0 transition-all duration-200 group-hover:bg-[#8da696]/70" />
-
-                <span className="relative flex h-[25px] w-[25px] shrink-0 items-center justify-center rounded-[7px] border border-[#66766d]/25 bg-[#202723] text-[#a9b9af] shadow-inner">
-                  <SquarePen size={13} strokeWidth={1.7} />
-
-                  <span className="absolute -right-[2px] -top-[2px] h-[4px] w-[4px] rounded-full bg-[#c6a96b]/70 opacity-70" />
-                </span>
-
-                <span className="relative flex min-w-0 flex-1">
-                  <span className="truncate text-[11px] font-medium text-[#d7dcda]">
-                    New conversation
-                  </span>
-                </span>
-
-                <span className="relative rounded-[5px] border border-[#343d38] bg-[#121614] px-1.5 py-0.5 text-[8px] font-medium text-[#69736e] transition-colors group-hover:border-[#46524c] group-hover:text-[#87938c]">
-                  Ctrl K
-                </span>
-              </button>
-
-              {/* Search */}
-              <button
-                type="button"
-                onClick={() => setSearchOpen(true)}
-                className="group mt-2 flex h-[32px] w-full items-center gap-2.5 rounded-[8px] px-2.5 text-[#737c77] transition-colors hover:bg-[#141817] hover:text-[#b1b8b4]"
-              >
-                <Search
-                  size={13}
-                  strokeWidth={1.7}
-                  className="transition-transform duration-200 group-hover:scale-105"
-                />
-
-                <span className="flex-1 text-left text-[11px]">Search</span>
-
-                <span className="rounded border border-[#2b312e] px-1.5 py-0.5 text-[8px] text-[#5f6863]">
-                  /
-                </span>
-              </button>
-            </>
-          )}
+            <span
+              className="
+                ml-auto
+                rounded-md
+                border
+                border-neutral-200
+                px-1.5
+                py-0.5
+                text-[9px]
+                text-neutral-400
+              "
+            >
+              /
+            </span>
+          </button>
         </div>
 
-        {/* =====================================================
-            NAVIGATION
-        ====================================================== */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 [scrollbar-color:#2d3430_transparent] [scrollbar-width:thin]">
-          {/* SETTINGS */}
-          {isSettingsOpen ? (
-            <div className="mt-4">
-              <div className="mb-2 px-1.5 text-[8px] font-semibold uppercase tracking-[0.18em] text-[#69716d]">
-                Settings
-              </div>
-
+        <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
+          {/* Conversations */}
+          <CollapsibleSection title="Conversations">
+            {filteredChats.length === 0 ? (
+              <EmptySection>No conversations yet.</EmptySection>
+            ) : (
               <div className="space-y-0.5">
-                {settingsItems.map((item) => {
-                  const active = settingsSection === item.id;
+                {filteredChats.map((chat) => {
+                  const isActive = activeChatId === chat.id;
+
+                  const pinned = Boolean(
+                    (chat as Chat & { pinned?: boolean }).pinned,
+                  );
+
+                  const menuKey = `chat:${chat.id}`;
 
                   return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => onSelectSettingsSection?.(item.id)}
-                      className={`flex h-[34px] w-full items-center rounded-[7px] px-2.5 text-left transition-all ${
-                        active
-                          ? "bg-[#1b221f] text-[#dce3df]"
-                          : "text-[#7d8681] hover:bg-[#141817] hover:text-[#bec6c2]"
-                      }`}
+                    <div
+                      key={chat.id}
+                      className="group relative"
                     >
-                      <span
-                        className={`mr-2 h-[4px] w-[4px] rounded-full transition-colors ${
-                          active ? "bg-[#91a99a]" : "bg-transparent"
-                        }`}
-                      />
+                      <button
+                        type="button"
+                        onClick={() => onSelectChat(chat.id)}
+                        className={[
+                          "flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 pr-8 text-left text-[12px] transition",
+                          isActive
+                            ? "border-[#dfe5e1] bg-[#edf1ee] font-medium text-black"
+                            : "border-transparent text-neutral-600 hover:bg-neutral-50 hover:text-black",
+                        ].join(" ")}
+                      >
+                        <MessageSquare
+                          className={[
+                            "h-3.5 w-3.5 shrink-0",
+                            isActive
+                              ? "text-[#65796c]"
+                              : "text-neutral-400",
+                          ].join(" ")}
+                        />
 
-                      <span className="text-[11px]">{item.label}</span>
-                    </button>
+                        <span className="min-w-0 flex-1 truncate">
+                          {chat.title || "Untitled conversation"}
+                        </span>
+
+                        {pinned && (
+                          <Pin className="h-3 w-3 shrink-0 fill-current text-neutral-400" />
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        aria-label="Conversation actions"
+                        onClick={(event) => {
+                          event.stopPropagation();
+
+                          setOpenMenu((current) =>
+                            current === menuKey ? null : menuKey,
+                          );
+                        }}
+                        className={[
+                          "absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-neutral-400 transition",
+                          openMenu === menuKey
+                            ? "bg-neutral-200 text-black"
+                            : "opacity-0 group-hover:opacity-100 hover:bg-neutral-200 hover:text-black",
+                        ].join(" ")}
+                      >
+                        <MoreHorizontal className="h-3.5 w-3.5" />
+                      </button>
+
+                      {openMenu === menuKey && (
+                        <div
+                          className="
+                            absolute
+                            right-1
+                            top-[calc(100%-2px)]
+                            z-30
+                            w-36
+                            overflow-hidden
+                            rounded-xl
+                            border
+                            border-neutral-200
+                            bg-white
+                            p-1
+                            shadow-[0_8px_30px_rgba(0,0,0,0.12)]
+                          "
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onToggleChatPin?.(chat.id);
+                              setOpenMenu(null);
+                            }}
+                            className="
+                              flex
+                              w-full
+                              items-center
+                              gap-2
+                              rounded-lg
+                              px-2.5
+                              py-2
+                              text-left
+                              text-[11px]
+                              text-neutral-600
+                              transition
+                              hover:bg-neutral-50
+                              hover:text-black
+                            "
+                          >
+                            <Pin className="h-3.5 w-3.5" />
+
+                            <span>
+                              {pinned ? "Unpin" : "Pin"}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => openRenameChat(chat)}
+                            className="
+                              flex
+                              w-full
+                              items-center
+                              gap-2
+                              rounded-lg
+                              px-2.5
+                              py-2
+                              text-left
+                              text-[11px]
+                              text-neutral-600
+                              transition
+                              hover:bg-neutral-50
+                              hover:text-black
+                            "
+                          >
+                            <SquarePen className="h-3.5 w-3.5" />
+
+                            <span>Rename</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => openDeleteChat(chat)}
+                            className="
+                              flex
+                              w-full
+                              items-center
+                              gap-2
+                              rounded-lg
+                              px-2.5
+                              py-2
+                              text-left
+                              text-[11px]
+                              text-red-500
+                              transition
+                              hover:bg-red-50
+                              hover:text-red-600
+                            "
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
-            </div>
-          ) : isSkillsOpen ? (
-            /* SKILLS */
-            <div className="mt-4">
-              <div className="mb-2 px-1.5 text-[8px] font-semibold uppercase tracking-[0.18em] text-[#69716d]">
-                Build
-              </div>
+            )}
+          </CollapsibleSection>
 
-              <div className="space-y-0.5">
-                <button
-                  type="button"
-                  onClick={handleOpenSkills}
-                  className="flex h-[34px] w-full items-center gap-2 rounded-[7px] bg-[#1b221f] px-2 text-left text-[#dce3df]"
-                >
-                  <Sparkles
-                    size={15}
-                    strokeWidth={1.7}
-                    className="text-[#a1b3a8]"
-                  />
-
-                  <span className="text-[11px]">Skills</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="flex h-[34px] w-full items-center gap-2 rounded-[7px] px-2 text-left text-[#707975] transition-colors hover:bg-[#141817] hover:text-[#aeb7b2]"
-                >
-                  <Puzzle size={15} strokeWidth={1.7} />
-
-                  <span className="text-[11px]">Extensions</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleOpenTasks}
-                  className="flex h-[34px] w-full items-center gap-2 rounded-[7px] px-2 text-left text-[#707975] transition-colors hover:bg-[#141817] hover:text-[#aeb7b2]"
-                >
-                  <Archive size={15} strokeWidth={1.7} />
-
-                  <span className="text-[11px]">Tasks</span>
-                </button>
-              </div>
-            </div>
-          ) : isTasksOpen ? (
-            /* TASKS */
-            <div className="mt-4">
-              <div className="mb-2 px-1.5 text-[8px] font-semibold uppercase tracking-[0.18em] text-[#69716d]">
-                Build
-              </div>
-
-              <div className="space-y-0.5">
-                <button
-                  type="button"
-                  onClick={handleOpenSkills}
-                  className="flex h-[34px] w-full items-center gap-2 rounded-[7px] px-2 text-left text-[#707975] transition-colors hover:bg-[#141817] hover:text-[#aeb7b2]"
-                >
-                  <Sparkles size={15} strokeWidth={1.7} />
-
-                  <span className="text-[11px]">Skills</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="flex h-[34px] w-full items-center gap-2 rounded-[7px] px-2 text-left text-[#707975] transition-colors hover:bg-[#141817] hover:text-[#aeb7b2]"
-                >
-                  <Puzzle size={15} strokeWidth={1.7} />
-
-                  <span className="text-[11px]">Extensions</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleOpenTasks}
-                  className="flex h-[34px] w-full items-center gap-2 rounded-[7px] bg-[#1b221f] px-2 text-left text-[#dce3df]"
-                >
-                  <Archive
-                    size={15}
-                    strokeWidth={1.7}
-                    className="text-[#a1b3a8]"
-                  />
-
-                  <span className="text-[11px]">Tasks</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* CONVERSATIONS */}
-              <CollapsibleSection title="Conversations">
-                {filteredChats.length === 0 ? (
-                  <EmptySection>
-                    {search
-                      ? "No conversations found."
-                      : "No conversations yet."}
-                  </EmptySection>
-                ) : (
-                  <div className="space-y-0.5">
-                    {filteredChats.map((chat) => {
-                      const active = chat.id === activeChatId;
-
-                      const menuOpen = openMenu === `chat:${chat.id}`;
-
-                      return (
-                        <div key={chat.id} className="group relative">
-                          <button
-                            type="button"
-                            onClick={() => onSelectChat(chat.id)}
-                            className={`flex h-[35px] w-full items-center gap-2 rounded-[7px] px-2 pr-8 text-left transition-all ${
-                              active
-                                ? "bg-[#1b221f] text-[#dce3df]"
-                                : "text-[#858d89] hover:bg-[#141817] hover:text-[#c0c7c3]"
-                            }`}
-                          >
-                            <MessageSquare
-                              size={13}
-                              strokeWidth={1.7}
-                              className={
-                                active
-                                  ? "shrink-0 text-[#9fb2a6]"
-                                  : "shrink-0 text-[#626b66]"
-                              }
-                            />
-
-                            <span className="min-w-0 flex-1 truncate text-[11px]">
-                              {chat.title}
-                            </span>
-
-                            {chat.pinned && (
-                              <Pin
-                                size={10}
-                                strokeWidth={1.8}
-                                className="shrink-0 fill-[#c6a96b]/70 text-[#c6a96b]/70"
-                              />
-                            )}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-
-                              setOpenMenu(menuOpen ? null : `chat:${chat.id}`);
-                            }}
-                            className={`absolute right-1 top-1/2 z-10 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-[5px] border border-transparent bg-[#171b19] text-[#727b76] shadow-sm transition-all hover:border-[#39423d] hover:bg-[#232925] hover:text-[#d1d7d4] ${
-                              menuOpen
-                                ? "opacity-100"
-                                : "opacity-0 group-hover:opacity-100"
-                            }`}
-                            title="Conversation actions"
-                          >
-                            <MoreHorizontal size={13} strokeWidth={1.8} />
-                          </button>
-
-                          {menuOpen && (
-                            <div className="absolute right-1 top-[34px] z-40 w-[155px] overflow-hidden rounded-[9px] border border-[#303833] bg-[#171b19] p-1 shadow-[0_14px_35px_rgba(0,0,0,0.5)]">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenMenu(null);
-
-                                  onToggleChatPin?.(chat.id);
-                                }}
-                                className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2.5 text-left text-[12px] text-[#b8c0bc] transition-colors hover:bg-[#202622] hover:text-[#e0e5e2]"
-                              >
-                                <Pin
-                                  size={11}
-                                  strokeWidth={1.8}
-                                  className={
-                                    chat.pinned
-                                      ? "fill-[#c6a96b] text-[#c6a96b]"
-                                      : ""
-                                  }
-                                />
-
-                                {chat.pinned ? "Unpin" : "Pin"}
-                              </button>
-
-                              <div className="my-1 h-px bg-[#282e2b]" />
-
-                              <button
-                                type="button"
-                                onClick={() => openRenameChat(chat)}
-                                className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2.5 text-left text-[12px] text-[#b8c0bc] transition-colors hover:bg-[#202622] hover:text-[#e0e5e2]"
-                              >
-                                <SquarePen size={11} strokeWidth={1.8} />
-                                Rename
-                              </button>
-
-                              <div className="my-1 h-px bg-[#282e2b]" />
-
-                              <button
-                                type="button"
-                                onClick={() => openDeleteChat(chat)}
-                                className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2.5 text-left text-[12px] text-[#b79b9b] transition-colors hover:bg-[#281f1f] hover:text-[#d8bebe]"
-                              >
-                                <Trash2 size={11} strokeWidth={1.8} />
-                                Delete conversation
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CollapsibleSection>
-
-              {/* PROJECTS */}
-              <CollapsibleSection title="Projects">
-                {filteredProjects.length === 0 ? (
-                  <EmptySection>
-                    {search ? "No projects found." : "No projects yet."}
-                  </EmptySection>
-                ) : (
-                  <div className="space-y-0.5">
-                    {filteredProjects.map((project) => {
-                      const active = project.id === activeProjectId;
-
-                      const menuOpen = openMenu === `project:${project.id}`;
-
-                      return (
-                        <div key={project.id} className="group relative">
-                          <button
-                            type="button"
-                            onClick={() => onSelectProject(project.id)}
-                            className={`flex h-[35px] w-full items-center gap-2 rounded-[7px] px-2 pr-8 text-left transition-all ${
-                              active
-                                ? "bg-[#1b221f] text-[#dce3df]"
-                                : "text-[#858d89] hover:bg-[#141817] hover:text-[#c0c7c3]"
-                            }`}
-                          >
-                            {active ? (
-                              <FolderOpen
-                                size={13}
-                                strokeWidth={1.7}
-                                className="shrink-0 text-[#9fb2a6]"
-                              />
-                            ) : (
-                              <Folder
-                                size={13}
-                                strokeWidth={1.7}
-                                className="shrink-0 text-[#626b66]"
-                              />
-                            )}
-
-                            <span className="min-w-0 flex-1 truncate text-[11px]">
-                              {project.name}
-                            </span>
-
-                            {project.pinned && (
-                              <Pin
-                                size={10}
-                                strokeWidth={1.8}
-                                className="shrink-0 fill-[#c6a96b]/70 text-[#c6a96b]/70"
-                              />
-                            )}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-
-                              setOpenMenu(
-                                menuOpen ? null : `project:${project.id}`,
-                              );
-                            }}
-                            className={`absolute right-1 top-1/2 z-10 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-[5px] border border-transparent bg-[#171b19] text-[#727b76] shadow-sm transition-all hover:border-[#39423d] hover:bg-[#232925] hover:text-[#d1d7d4] ${
-                              menuOpen
-                                ? "opacity-100"
-                                : "opacity-0 group-hover:opacity-100"
-                            }`}
-                            title="Project actions"
-                          >
-                            <MoreHorizontal size={13} strokeWidth={1.8} />
-                          </button>
-
-                          {menuOpen && (
-                            <div className="absolute right-1 top-[34px] z-40 w-[150px] overflow-hidden rounded-[9px] border border-[#303833] bg-[#171b19] p-1 shadow-[0_14px_35px_rgba(0,0,0,0.5)]">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenMenu(null);
-
-                                  onToggleProjectPin?.(project.id);
-                                }}
-                                className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2.5 text-left text-[12px] text-[#b8c0bc] transition-colors hover:bg-[#202622] hover:text-[#e0e5e2]"
-                              >
-                                <Pin
-                                  size={11}
-                                  strokeWidth={1.8}
-                                  className={
-                                    project.pinned
-                                      ? "fill-[#c6a96b] text-[#c6a96b]"
-                                      : ""
-                                  }
-                                />
-
-                                {project.pinned ? "Unpin" : "Pin"}
-                              </button>
-
-                              <div className="my-1 h-px bg-[#282e2b]" />
-
-                              <button
-                                type="button"
-                                onClick={() => openRenameProject(project)}
-                                className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2.5 text-left text-[12px] text-[#b8c0bc] transition-colors hover:bg-[#202622] hover:text-[#e0e5e2]"
-                              >
-                                <SquarePen size={11} strokeWidth={1.8} />
-                                Rename
-                              </button>
-
-                              <div className="my-1 h-px bg-[#282e2b]" />
-
-                              <button
-                                type="button"
-                                onClick={() => openDeleteProject(project)}
-                                className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2.5 text-left text-[12px] text-[#b79b9b] transition-colors hover:bg-[#281f1f] hover:text-[#d8bebe]"
-                              >
-                                <Trash2 size={11} strokeWidth={1.8} />
-                                Delete project
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+          {/* Projects */}
+          <CollapsibleSection title="Projects">
+            {filteredProjects.length === 0 ? (
+              <div>
+                <EmptySection>No projects yet.</EmptySection>
 
                 <button
                   type="button"
                   onClick={onNewProject}
-                  className="group mt-1 flex h-[31px] w-full items-center gap-2 rounded-[7px] px-2 text-[#6f7874] transition-colors hover:bg-[#141817] hover:text-[#adb5b0]"
+                  className="
+                    mt-1
+                    flex
+                    w-full
+                    items-center
+                    gap-2
+                    rounded-lg
+                    px-2.5
+                    py-2
+                    text-[12px]
+                    text-neutral-500
+                    transition
+                    hover:bg-neutral-50
+                    hover:text-black
+                  "
                 >
-                  <span className="flex h-[18px] w-[18px] items-center justify-center rounded border border-[#343b37] transition-colors group-hover:border-[#56635c]">
-                    <Plus size={10} />
-                  </span>
+                  <Plus className="h-3.5 w-3.5" />
 
-                  <span className="text-[11px]">New project</span>
+                  <span>New project</span>
                 </button>
-              </CollapsibleSection>
+              </div>
+            ) : (
+              <div className="space-y-0.5">
+                {filteredProjects.map((project) => {
+                  const isActive =
+                    activeProjectId === project.id;
 
-              {/* BUILD */}
-              <FixedSection title="Build">
-                <div className="space-y-0.5">
-                  {/* Skills */}
-                  <button
-                    type="button"
-                    onClick={handleOpenSkills}
-                    className="group flex h-[31px] w-full items-center gap-2 rounded-[7px] px-2 text-[#858d89] transition-colors hover:bg-[#141817] hover:text-[#bdc4c1]"
-                  >
-                    <Sparkles
-                      size={15}
-                      strokeWidth={1.7}
-                      className="text-[#99aaa0] transition-colors group-hover:text-[#aec0b5]"
-                    />
+                  const pinned = Boolean(
+                    (
+                      project as Project & {
+                        pinned?: boolean;
+                      }
+                    ).pinned,
+                  );
 
-                    <span className="text-[13px]">Skills</span>
-                  </button>
+                  const menuKey = `project:${project.id}`;
 
-                  {/* Extensions */}
-                  <button
-                    type="button"
-                    className="group flex h-[31px] w-full items-center gap-2 rounded-[7px] px-2 text-[#858d89] transition-colors hover:bg-[#141817] hover:text-[#bdc4c1]"
-                  >
-                    <Puzzle
-                      size={15}
-                      strokeWidth={1.7}
-                      className="text-[#858f8a]"
-                    />
+                  return (
+                    <div
+                      key={project.id}
+                      className="group relative"
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onSelectProject(project.id)
+                        }
+                        className={[
+                          "flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 pr-8 text-left text-[12px] transition",
+                          isActive
+                            ? "border-[#dfe5e1] bg-[#edf1ee] font-medium text-black"
+                            : "border-transparent text-neutral-600 hover:bg-neutral-50 hover:text-black",
+                        ].join(" ")}
+                      >
+                        {isActive ? (
+                          <FolderOpen className="h-3.5 w-3.5 shrink-0 text-[#65796c]" />
+                        ) : (
+                          <Folder className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
+                        )}
 
-                    <span className="text-[13px]">Extensions</span>
-                  </button>
+                        <span className="min-w-0 flex-1 truncate">
+                          {project.name || "Untitled project"}
+                        </span>
 
-                  {/* Tasks */}
-                  <button
-                    type="button"
-                    onClick={handleOpenTasks}
-                    className="group flex h-[31px] w-full items-center gap-2 rounded-[7px] px-2 text-[#858d89] transition-colors hover:bg-[#141817] hover:text-[#bdc4c1]"
-                  >
-                    <Archive
-                      size={15}
-                      strokeWidth={1.7}
-                      className="text-[#858f8a] transition-colors group-hover:text-[#9ba8a1]"
-                    />
+                        {pinned && (
+                          <Pin className="h-3 w-3 shrink-0 fill-current text-neutral-400" />
+                        )}
+                      </button>
 
-                    <span className="text-[13px]">Tasks</span>
-                  </button>
-                </div>
-              </FixedSection>
-            </>
-          )}
+                      <button
+                        type="button"
+                        aria-label="Project actions"
+                        onClick={(event) => {
+                          event.stopPropagation();
+
+                          setOpenMenu((current) =>
+                            current === menuKey ? null : menuKey,
+                          );
+                        }}
+                        className={[
+                          "absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-neutral-400 transition",
+                          openMenu === menuKey
+                            ? "bg-neutral-200 text-black"
+                            : "opacity-0 group-hover:opacity-100 hover:bg-neutral-200 hover:text-black",
+                        ].join(" ")}
+                      >
+                        <MoreHorizontal className="h-3.5 w-3.5" />
+                      </button>
+
+                      {openMenu === menuKey && (
+                        <div
+                          className="
+                            absolute
+                            right-1
+                            top-[calc(100%-2px)]
+                            z-30
+                            w-36
+                            overflow-hidden
+                            rounded-xl
+                            border
+                            border-neutral-200
+                            bg-white
+                            p-1
+                            shadow-[0_8px_30px_rgba(0,0,0,0.12)]
+                          "
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onToggleProjectPin?.(
+                                project.id,
+                              );
+                              setOpenMenu(null);
+                            }}
+                            className="
+                              flex
+                              w-full
+                              items-center
+                              gap-2
+                              rounded-lg
+                              px-2.5
+                              py-2
+                              text-left
+                              text-[11px]
+                              text-neutral-600
+                              transition
+                              hover:bg-neutral-50
+                              hover:text-black
+                            "
+                          >
+                            <Pin className="h-3.5 w-3.5" />
+
+                            <span>
+                              {pinned ? "Unpin" : "Pin"}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openRenameProject(project)
+                            }
+                            className="
+                              flex
+                              w-full
+                              items-center
+                              gap-2
+                              rounded-lg
+                              px-2.5
+                              py-2
+                              text-left
+                              text-[11px]
+                              text-neutral-600
+                              transition
+                              hover:bg-neutral-50
+                              hover:text-black
+                            "
+                          >
+                            <SquarePen className="h-3.5 w-3.5" />
+
+                            <span>Rename</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openDeleteProject(project)
+                            }
+                            className="
+                              flex
+                              w-full
+                              items-center
+                              gap-2
+                              rounded-lg
+                              px-2.5
+                              py-2
+                              text-left
+                              text-[11px]
+                              text-red-500
+                              transition
+                              hover:bg-red-50
+                              hover:text-red-600
+                            "
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={onNewProject}
+                  className="
+                    mt-1
+                    flex
+                    w-full
+                    items-center
+                    gap-2
+                    rounded-lg
+                    px-2.5
+                    py-2
+                    text-[12px]
+                    text-neutral-500
+                    transition
+                    hover:bg-neutral-50
+                    hover:text-black
+                  "
+                >
+                  <Plus className="h-3.5 w-3.5" />
+
+                  <span>New project</span>
+                </button>
+              </div>
+            )}
+          </CollapsibleSection>
+
+          {/* Build */}
+          {renderBuildNavigation()}
         </div>
 
-        {/* BOTTOM */}
-        {!isSettingsOpen && !isSkillsOpen && !isTasksOpen && (
-          <div className="shrink-0 border-t border-[#252a28] px-3 py-2.5">
-            <button
-              type="button"
-              onClick={() => handleOpenSettings("general")}
-              className="flex h-[32px] w-full items-center gap-2 rounded-[7px] px-2 text-[#777f7b] transition-colors hover:bg-[#141817] hover:text-[#b6bcb9]"
-            >
-              <Settings size={15} strokeWidth={1.7} />
+        {/* Bottom Settings */}
+        <div className="mt-3 border-t border-neutral-100 pt-2 pb-2">
+          <button
+            type="button"
+            onClick={handleOpenSettings}
+            className={[
+              "group flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2.5 text-left text-[12px] transition",
+              activePage === "settings"
+                ? "border-[#dfe5e1] bg-[#edf1ee] font-semibold text-[#111111]"
+                : "border-transparent text-neutral-500 hover:bg-neutral-50 hover:text-black",
+            ].join(" ")}
+          >
+            <Settings
+              className={[
+                "h-4 w-4 shrink-0 transition",
+                activePage === "settings"
+                  ? "text-[#65796c]"
+                  : "text-neutral-400 group-hover:text-neutral-600",
+              ].join(" ")}
+            />
 
-              <span className="text-[13px]">Settings</span>
-            </button>
+            <span>Settings</span>
 
-            <div className="mt-1 flex items-center gap-2 rounded-[8px] px-2 py-1.5">
-              <div className="flex h-[25px] w-[25px] items-center justify-center rounded-full border border-[#39413d] bg-[#171c19]">
-                <span className="text-[9px] font-medium text-[#9aa69f]">U</span>
-              </div>
+            {activePage === "settings" && (
+              <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#65796c]" />
+            )}
+          </button>
+        </div>
+      </div>
 
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[10px] font-medium text-[#b8bfbc]">
-                  User
-                </div>
-
-                <div className="truncate text-[8px] text-[#626a66]">
-                  Local workspace
-                </div>
-              </div>
-
-              <div className="h-1.5 w-1.5 rounded-full bg-[#81998a] shadow-[0_0_8px_rgba(129,153,138,0.35)]" />
-            </div>
-          </div>
-        )}
-      </aside>
-
-      {/* SEARCH MODAL */}
+      {/* Search Modal */}
       {searchOpen && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 px-4 backdrop-blur-sm"
+          className="
+            fixed
+            inset-0
+            z-50
+            flex
+            items-center
+            justify-center
+            bg-black/20
+            backdrop-blur-[2px]
+          "
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
               closeSearch();
             }
           }}
         >
-          <div className="w-full max-w-[560px] overflow-hidden rounded-2xl border border-[#343b37] bg-[#151918] shadow-[0_30px_90px_rgba(0,0,0,0.65)]">
-            <div className="flex items-center gap-3 px-4">
-              <Search
-                size={17}
-                strokeWidth={1.7}
-                className="shrink-0 text-[#7f8984]"
-              />
+          <div
+            className="
+              w-[520px]
+              max-w-[calc(100vw-32px)]
+              overflow-hidden
+              rounded-2xl
+              border
+              border-neutral-200
+              bg-white
+              shadow-[0_20px_70px_rgba(0,0,0,0.16)]
+            "
+          >
+            <div className="flex items-center gap-3 px-4 py-3">
+              <Search className="h-4 w-4 shrink-0 text-neutral-400" />
 
               <input
                 autoFocus
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) =>
+                  setSearch(event.target.value)
+                }
                 onKeyDown={(event) => {
                   if (event.key === "Escape") {
                     closeSearch();
                   }
                 }}
                 placeholder="Search conversations and projects..."
-                className="h-[58px] min-w-0 flex-1 border-0 bg-transparent text-[12px] text-[#e2e6e4] outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0 focus-visible:border-0 focus-visible:outline-none focus-visible:ring-0 placeholder:text-[#5e6762]"
+                className="
+                  min-w-0
+                  flex-1
+                  bg-transparent
+                  text-[13px]
+                  text-black
+                  outline-none
+                  placeholder:text-neutral-400
+                "
               />
 
               <button
                 type="button"
                 onClick={closeSearch}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#68716d] transition-colors hover:bg-[#202522] hover:text-[#aeb6b2]"
+                className="
+                  flex
+                  h-7
+                  w-7
+                  items-center
+                  justify-center
+                  rounded-lg
+                  text-neutral-400
+                  transition
+                  hover:bg-neutral-100
+                  hover:text-black
+                "
               >
-                <X size={14} />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="h-px bg-[#292f2c]" />
-
-            <div className="max-h-[420px] overflow-y-auto p-2 [scrollbar-color:#303633_transparent] [scrollbar-width:thin]">
-              {filteredChats.length === 0 && filteredProjects.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-14 text-center">
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-[#2c332f] bg-[#1a1e1c]">
-                    <Search
-                      size={16}
-                      strokeWidth={1.6}
-                      className="text-[#68716d]"
-                    />
-                  </div>
-
-                  <div className="text-[11px] text-[#9aa19e]">
-                    No results found
-                  </div>
-
-                  <div className="mt-1 text-[9px] text-[#5d6661]">
-                    Try another search term
-                  </div>
+            <div className="max-h-[420px] overflow-y-auto border-t border-neutral-100 p-2">
+              {filteredChats.length === 0 &&
+              filteredProjects.length === 0 ? (
+                <div className="px-3 py-8 text-center text-[12px] text-neutral-400">
+                  No results found.
                 </div>
               ) : (
-                <>
-                  {filteredChats.length > 0 && (
-                    <div className="mb-3">
-                      <div className="px-2 pb-1.5 pt-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-[#68716d]">
-                        Conversations
+                <div className="space-y-1">
+                  {filteredChats.map((chat) => (
+                    <button
+                      key={`search-chat-${chat.id}`}
+                      type="button"
+                      onClick={() => {
+                        onSelectChat(chat.id);
+                        closeSearch();
+                      }}
+                      className="
+                        flex
+                        w-full
+                        items-center
+                        gap-3
+                        rounded-lg
+                        px-3
+                        py-2.5
+                        text-left
+                        transition
+                        hover:bg-neutral-50
+                      "
+                    >
+                      <MessageSquare className="h-4 w-4 shrink-0 text-neutral-400" />
+
+                      <div className="min-w-0">
+                        <div className="truncate text-[12px] font-medium text-neutral-800">
+                          {chat.title ||
+                            "Untitled conversation"}
+                        </div>
+
+                        <div className="text-[10px] text-neutral-400">
+                          Conversation
+                        </div>
                       </div>
+                    </button>
+                  ))}
 
-                      <div className="space-y-0.5">
-                        {filteredChats.map((chat) => (
-                          <button
-                            key={chat.id}
-                            type="button"
-                            onClick={() => {
-                              onSelectChat(chat.id);
-                              closeSearch();
-                            }}
-                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-[#1c211f]"
-                          >
-                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#303733] bg-[#191e1c]">
-                              <MessageSquare
-                                size={12}
-                                strokeWidth={1.7}
-                                className="text-[#89968f]"
-                              />
-                            </div>
+                  {filteredProjects.map((project) => (
+                    <button
+                      key={`search-project-${project.id}`}
+                      type="button"
+                      onClick={() => {
+                        onSelectProject(project.id);
+                        closeSearch();
+                      }}
+                      className="
+                        flex
+                        w-full
+                        items-center
+                        gap-3
+                        rounded-lg
+                        px-3
+                        py-2.5
+                        text-left
+                        transition
+                        hover:bg-neutral-50
+                      "
+                    >
+                      <Folder className="h-4 w-4 shrink-0 text-neutral-400" />
 
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate text-[11px] font-medium text-[#cdd2d0]">
-                                {chat.title}
-                              </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-[12px] font-medium text-neutral-800">
+                          {project.name ||
+                            "Untitled project"}
+                        </div>
 
-                              <div className="mt-0.5 flex items-center gap-1.5 text-[8px] text-[#626b66]">
-                                <span>Conversation</span>
-
-                                {chat.pinned && (
-                                  <>
-                                    <span>·</span>
-
-                                    <Pin
-                                      size={8}
-                                      strokeWidth={1.8}
-                                      className="fill-[#c6a96b]/70 text-[#c6a96b]/70"
-                                    />
-
-                                    <span>Pinned</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
+                        <div className="text-[10px] text-neutral-400">
+                          Project
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {filteredProjects.length > 0 && (
-                    <div>
-                      <div className="px-2 pb-1.5 pt-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-[#68716d]">
-                        Projects
-                      </div>
-
-                      <div className="space-y-0.5">
-                        {filteredProjects.map((project) => (
-                          <button
-                            key={project.id}
-                            type="button"
-                            onClick={() => {
-                              onSelectProject(project.id);
-
-                              closeSearch();
-                            }}
-                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-[#1c211f]"
-                          >
-                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#303733] bg-[#191e1c]">
-                              <Folder
-                                size={12}
-                                strokeWidth={1.7}
-                                className="text-[#89968f]"
-                              />
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate text-[11px] font-medium text-[#cdd2d0]">
-                                {project.name}
-                              </div>
-
-                              <div className="mt-0.5 flex items-center gap-1.5 text-[8px] text-[#626b66]">
-                                <span>Project</span>
-
-                                {project.pinned && (
-                                  <>
-                                    <span>·</span>
-
-                                    <Pin
-                                      size={8}
-                                      strokeWidth={1.8}
-                                      className="fill-[#c6a96b]/70 text-[#c6a96b]/70"
-                                    />
-
-                                    <span>Pinned</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
+                    </button>
+                  ))}
+                </div>
               )}
-            </div>
-
-            <div className="flex items-center justify-between border-t border-[#292f2c] px-4 py-2.5">
-              <span className="text-[8px] text-[#5f6863]">
-                Search across your workspace
-              </span>
-
-              <div className="flex items-center gap-1 text-[8px] text-[#5f6863]">
-                <span className="rounded border border-[#303733] px-1.5 py-0.5">
-                  ESC
-                </span>
-
-                <span>to close</span>
-              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* DELETE CONFIRM MODAL */}
+      {/* Delete Confirmation Modal */}
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
+          className="
+            fixed
+            inset-0
+            z-[60]
+            flex
+            items-center
+            justify-center
+            bg-black/20
+            backdrop-blur-[2px]
+          "
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
               setDeleteTarget(null);
             }
           }}
         >
-          <div className="w-full max-w-[390px] rounded-2xl border border-[#343b37] bg-[#151918] p-5 shadow-[0_30px_90px_rgba(0,0,0,0.7)]">
+          <div
+            className="
+              w-[400px]
+              max-w-[calc(100vw-32px)]
+              rounded-2xl
+              border
+              border-neutral-200
+              bg-white
+              p-5
+              shadow-[0_20px_70px_rgba(0,0,0,0.16)]
+            "
+          >
             <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] border border-[#533b3b] bg-[#241b1b] text-[#c39494]">
-                <Trash2 size={16} strokeWidth={1.7} />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500">
+                <Trash2 className="h-4 w-4" />
               </div>
 
               <div className="min-w-0">
-                <h3 className="text-[13px] font-semibold text-[#e0e5e2]">
+                <h3 className="text-[14px] font-semibold text-black">
+                  Delete{" "}
                   {deleteTarget.type === "chat"
-                    ? "Delete conversation?"
-                    : "Delete project?"}
+                    ? "conversation"
+                    : "project"}
+                  ?
                 </h3>
 
-                <p className="mt-1.5 text-[10px] leading-5 text-[#737c77]">
+                <p className="mt-1.5 text-[12px] leading-5 text-neutral-500">
                   Are you sure you want to delete{" "}
-                  <span className="font-medium text-[#aeb6b2]">
+                  <span className="font-medium text-neutral-700">
                     "{deleteTarget.name}"
                   </span>
                   ? This action cannot be undone.
@@ -1241,7 +1217,19 @@ export default function Sidebar({
               <button
                 type="button"
                 onClick={() => setDeleteTarget(null)}
-                className="h-8 rounded-[7px] border border-[#303733] bg-[#191e1c] px-3 text-[9px] font-medium text-[#929b96] transition-colors hover:bg-[#202522] hover:text-[#c4cbc7]"
+                className="
+                  rounded-lg
+                  border
+                  border-neutral-200
+                  px-3.5
+                  py-2
+                  text-[11px]
+                  font-medium
+                  text-neutral-600
+                  transition
+                  hover:bg-neutral-50
+                  hover:text-black
+                "
               >
                 Cancel
               </button>
@@ -1249,7 +1237,17 @@ export default function Sidebar({
               <button
                 type="button"
                 onClick={confirmDelete}
-                className="h-8 rounded-[7px] border border-[#634747] bg-[#392525] px-3 text-[9px] font-medium text-[#d6b1b1] transition-colors hover:bg-[#472b2b] hover:text-[#e4c2c2]"
+                className="
+                  rounded-lg
+                  bg-black
+                  px-3.5
+                  py-2
+                  text-[11px]
+                  font-medium
+                  text-white
+                  transition
+                  hover:bg-neutral-800
+                "
               >
                 Delete
               </button>
@@ -1258,56 +1256,107 @@ export default function Sidebar({
         </div>
       )}
 
-      {/* RENAME MODAL */}
+      {/* Rename Modal */}
       {renameTarget && (
         <div
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
+          className="
+            fixed
+            inset-0
+            z-[60]
+            flex
+            items-center
+            justify-center
+            bg-black/20
+            backdrop-blur-[2px]
+          "
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
               closeRename();
             }
           }}
         >
-          <div className="w-full max-w-[390px] rounded-2xl border border-[#343b37] bg-[#151918] p-5 shadow-[0_30px_90px_rgba(0,0,0,0.7)]">
-            <div className="mb-4">
-              <h3 className="text-[13px] font-semibold text-[#e0e5e2]">
-                Rename{" "}
-                {renameTarget.type === "chat" ? "conversation" : "project"}
-              </h3>
+          <div
+            className="
+              w-[400px]
+              max-w-[calc(100vw-32px)]
+              rounded-2xl
+              border
+              border-neutral-200
+              bg-white
+              p-5
+              shadow-[0_20px_70px_rgba(0,0,0,0.16)]
+            "
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-600">
+                <SquarePen className="h-4 w-4" />
+              </div>
 
-              <p className="mt-1.5 text-[10px] leading-5 text-[#737c77]">
-                Choose a new name for this{" "}
-                {renameTarget.type === "chat" ? "conversation" : "project"}.
-              </p>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-[14px] font-semibold text-black">
+                  Rename{" "}
+                  {renameTarget.type === "chat"
+                    ? "conversation"
+                    : "project"}
+                </h3>
+
+                <p className="mt-1.5 text-[12px] text-neutral-500">
+                  Enter a new name.
+                </p>
+              </div>
             </div>
 
             <input
               autoFocus
               value={renameValue}
-              onChange={(event) => setRenameValue(event.target.value)}
+              onChange={(event) =>
+                setRenameValue(event.target.value)
+              }
               onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  confirmRename();
+                }
+
                 if (event.key === "Escape") {
                   closeRename();
                 }
-
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  confirmRename();
-                }
               }}
-              className="h-9 w-full rounded-[7px] border border-[#303833] bg-[#101312] px-3 text-[10px] text-[#dce2df] outline-none placeholder:text-[#59625e] focus:border-[#55645b] focus:ring-1 focus:ring-[#55645b]/30"
-              placeholder={
-                renameTarget.type === "chat"
-                  ? "Conversation name..."
-                  : "Project name..."
-              }
+              className="
+                mt-4
+                w-full
+                rounded-xl
+                border
+                border-neutral-200
+                bg-white
+                px-3
+                py-2.5
+                text-[12px]
+                text-black
+                outline-none
+                transition
+                placeholder:text-neutral-400
+                focus:border-neutral-400
+              "
+              placeholder="Enter name..."
             />
 
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={closeRename}
-                className="h-8 rounded-[7px] border border-[#303733] bg-[#191e1c] px-3 text-[9px] font-medium text-[#929b96] transition-colors hover:bg-[#202522] hover:text-[#c4cbc7]"
+                className="
+                  rounded-lg
+                  border
+                  border-neutral-200
+                  px-3.5
+                  py-2
+                  text-[11px]
+                  font-medium
+                  text-neutral-600
+                  transition
+                  hover:bg-neutral-50
+                  hover:text-black
+                "
               >
                 Cancel
               </button>
@@ -1316,15 +1365,26 @@ export default function Sidebar({
                 type="button"
                 onClick={confirmRename}
                 disabled={!renameValue.trim()}
-                className="h-8 rounded-[7px] border border-[#4d5e54] bg-[#27332d] px-3 text-[9px] font-medium text-[#b8c8be] transition-colors hover:bg-[#304037] disabled:cursor-not-allowed disabled:opacity-40"
+                className="
+                  rounded-lg
+                  bg-black
+                  px-3.5
+                  py-2
+                  text-[11px]
+                  font-medium
+                  text-white
+                  transition
+                  hover:bg-neutral-800
+                  disabled:cursor-not-allowed
+                  disabled:opacity-40
+                "
               >
-                Save
+                Rename
               </button>
             </div>
           </div>
         </div>
       )}
-    </>
+    </aside>
   );
 }
-  

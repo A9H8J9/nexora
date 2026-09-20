@@ -1,7 +1,5 @@
 import {
-  ArrowLeft,
   Bell,
-  Check,
   ChevronDown,
   Cpu,
   Download,
@@ -13,11 +11,13 @@ import {
   Plug,
   RefreshCw,
   Shield,
+  SlidersHorizontal,
   Trash2,
   Upload,
   Volume2,
 } from "lucide-react";
 import { useEffect, useState, type ElementType, type ReactNode } from "react";
+import PageHeader from "../components/PageHeader";
 
 type SettingsSection =
   | "general"
@@ -33,7 +33,6 @@ type SettingsSection =
 
 interface SettingsPageProps {
   section: SettingsSection;
-  onBack: () => void;
 }
 
 interface SettingRowProps {
@@ -50,17 +49,17 @@ function SettingRow({
   children,
 }: SettingRowProps) {
   return (
-    <div className="flex items-center justify-between gap-8 border-b border-[#262b29] py-5 last:border-b-0">
+    <div className="flex items-center justify-between gap-8 border-b border-neutral-200 py-5 last:border-b-0">
       <div className="flex min-w-0 items-start gap-3">
-        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#292f2c] bg-[#151918] text-[#89958f]">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-500">
           <Icon size={15} strokeWidth={1.7} />
         </div>
 
         <div className="min-w-0">
-          <div className="text-[13px] font-medium text-[#e1e5e3]">{title}</div>
+          <div className="text-[13px] font-medium text-black">{title}</div>
 
           {description && (
-            <div className="mt-1 max-w-xl text-[11px] leading-5 text-[#69716d]">
+            <div className="mt-1 max-w-xl text-[11px] leading-5 text-neutral-500">
               {description}
             </div>
           )}
@@ -85,12 +84,12 @@ function Toggle({
       onClick={() => onChange(!value)}
       className={`relative h-6 w-11 rounded-full border transition-all ${
         value
-          ? "border-[#8fa596] bg-[#718879]"
-          : "border-[#39413d] bg-[#1b201e]"
+          ? "border-neutral-800 bg-black"
+          : "border-neutral-300 bg-neutral-200"
       }`}
     >
       <span
-        className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-[#e8ece9] shadow-sm transition-all ${
+        className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow-sm transition-all ${
           value ? "left-[21px]" : "left-[3px]"
         }`}
       />
@@ -112,13 +111,13 @@ function Select({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-9 min-w-[150px] appearance-none rounded-lg border border-[#303733] bg-[#151918] px-3 pr-9 text-[12px] text-[#dce1de] outline-none transition focus:border-[#66786d]"
+        className="h-9 min-w-[150px] appearance-none rounded-lg border border-neutral-200 bg-white px-3 pr-9 text-[12px] text-black outline-none transition focus:border-neutral-400"
       >
         {options.map((option) => (
           <option
             key={option.value}
             value={option.value}
-            className="bg-[#151918]"
+            className="bg-white"
           >
             {option.label}
           </option>
@@ -127,7 +126,7 @@ function Select({
 
       <ChevronDown
         size={14}
-        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#69716d]"
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400"
       />
     </div>
   );
@@ -149,7 +148,7 @@ function NumberInput({
   suffix?: string;
 }) {
   return (
-    <div className="flex h-9 items-center rounded-lg border border-[#303733] bg-[#151918]">
+    <div className="flex h-9 items-center rounded-lg border border-neutral-200 bg-white">
       <input
         type="number"
         value={value}
@@ -157,11 +156,11 @@ function NumberInput({
         max={max}
         step={step}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="h-full w-[85px] bg-transparent px-3 text-right text-[12px] text-[#dce1de] outline-none"
+        className="h-full w-[85px] bg-transparent px-3 text-right text-[12px] text-black outline-none"
       />
 
       {suffix && (
-        <span className="pr-3 text-[11px] text-[#69716d]">{suffix}</span>
+        <span className="pr-3 text-[11px] text-neutral-400">{suffix}</span>
       )}
     </div>
   );
@@ -181,7 +180,7 @@ function TextInput({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="h-9 w-[240px] rounded-lg border border-[#303733] bg-[#151918] px-3 text-[12px] text-[#dce1de] outline-none placeholder:text-[#525b56] focus:border-[#66786d]"
+      className="h-9 w-[240px] rounded-lg border border-neutral-200 bg-white px-3 text-[12px] text-black outline-none placeholder:text-neutral-400 focus:border-neutral-400"
     />
   );
 }
@@ -195,18 +194,18 @@ function SectionHeader({
 }) {
   return (
     <div className="mb-6">
-      <h1 className="text-[20px] font-medium tracking-[-0.02em] text-[#e5e9e7]">
+      <h1 className="text-[20px] font-medium tracking-[-0.02em] text-black">
         {title}
       </h1>
 
-      <p className="mt-1.5 max-w-2xl text-[12px] leading-5 text-[#69716d]">
+      <p className="mt-1.5 max-w-2xl text-[12px] leading-5 text-neutral-500">
         {description}
       </p>
     </div>
   );
 }
 
-export default function SettingsPage({ section, onBack }: SettingsPageProps) {
+export default function SettingsPage({ section }: SettingsPageProps) {
   const [dataFolder, setDataFolder] = useState(
     () => localStorage.getItem("nexora.settings.general.dataFolder") ?? "",
   );
@@ -1053,7 +1052,7 @@ export default function SettingsPage({ section, onBack }: SettingsPageProps) {
               <button
                 type="button"
                 onClick={exportSettings}
-                className="flex h-9 items-center gap-2 rounded-lg border border-[#303733] bg-[#151918] px-3 text-[12px] text-[#cbd2ce] transition hover:border-[#4a5750] hover:bg-[#1c211f]"
+                className="flex h-9 items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 text-[12px] text-neutral-700 transition hover:border-neutral-300 hover:bg-neutral-50"
               >
                 <Download size={14} />
                 Export
@@ -1068,7 +1067,7 @@ export default function SettingsPage({ section, onBack }: SettingsPageProps) {
               <button
                 type="button"
                 disabled
-                className="flex h-9 cursor-not-allowed items-center gap-2 rounded-lg border border-[#292f2c] bg-[#151918] px-3 text-[12px] text-[#555e59]"
+                className="flex h-9 cursor-not-allowed items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-[12px] text-neutral-400"
               >
                 <Upload size={14} />
                 Import
@@ -1083,7 +1082,7 @@ export default function SettingsPage({ section, onBack }: SettingsPageProps) {
               <button
                 type="button"
                 onClick={resetSettings}
-                className="flex h-9 items-center gap-2 rounded-lg border border-[#4a3434] bg-[#201717] px-3 text-[12px] text-[#c99c9c] transition hover:border-[#684747] hover:bg-[#281b1b]"
+                className="flex h-9 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 text-[12px] text-red-600 transition hover:border-red-300 hover:bg-red-100"
               >
                 <Trash2 size={14} />
                 Reset
@@ -1098,31 +1097,14 @@ export default function SettingsPage({ section, onBack }: SettingsPageProps) {
   }
 
   return (
-    <main className="min-w-0 flex-1 overflow-y-auto bg-[#0d0f10]">
-      <div className="mx-auto min-h-full w-full max-w-4xl px-10 py-8">
-        <div className="mb-8 flex items-center gap-4 border-b border-[#262b29] pb-5">
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex h-8 items-center gap-2 rounded-lg border border-transparent px-2.5 text-[12px] text-[#7b857f] transition hover:border-[#303733] hover:bg-[#171b19] hover:text-[#d6dcd8]"
-          >
-            <ArrowLeft size={15} />
-            Back
-          </button>
+    <main className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-[#fafafa]">
+      <PageHeader
+        icon={SlidersHorizontal}
+        title="Settings"
+        subtitle="Manage your Nexora preferences"
+      />
 
-          <div className="h-4 w-px bg-[#2b302e]" />
-
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#303733] bg-[#151918]">
-              <Check size={14} className="text-[#91a99a]" />
-            </div>
-
-            <span className="text-[13px] font-medium text-[#dfe4e1]">
-              Settings
-            </span>
-          </div>
-        </div>
-
+      <div className="mx-auto w-full max-w-4xl px-10 py-8">
         {renderSection()}
       </div>
     </main>

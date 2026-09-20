@@ -6,8 +6,10 @@ import NewProjectModal from "./components/NewProjectModal";
 import SettingsPage from "./pages/SettingsPage";
 import SkillsPage from "./pages/SkillsPage";
 import TasksPage from "./pages/TasksPage";
+import ExtensionsPage from "./pages/ExtensionsPage";
 import { loadChats, loadProjects, saveChats, saveProjects } from "./storage";
 import type { Chat, Message, Project } from "./types";
+import TitleBar from "./components/TitleBar";
 
 export type SettingsSection =
   | "general"
@@ -20,6 +22,13 @@ export type SettingsSection =
   | "integrations"
   | "notifications"
   | "data-storage";
+
+export type ActivePage =
+  | "chat"
+  | "settings"
+  | "skills"
+  | "extensions"
+  | "tasks";
 
 function createId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -78,18 +87,22 @@ export default function App() {
 
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // ============================================================
+  // ACTIVE PAGE
+  // ============================================================
+
+  const [activePage, setActivePage] = useState<ActivePage>("chat");
+
+  // ============================================================
+  // SETTINGS
+  // ============================================================
 
   const [settingsSection, setSettingsSection] =
     useState<SettingsSection>("general");
 
-  const [isSkillsOpen, setIsSkillsOpen] = useState(false);
-
   // ============================================================
-  // TASKS
+  // ACTIVE DATA
   // ============================================================
-
-  const [isTasksOpen, setIsTasksOpen] = useState(false);
 
   const activeChat = useMemo(
     () => chats.find((chat) => chat.id === activeChatId) ?? null,
@@ -100,6 +113,10 @@ export default function App() {
     () => projects.find((project) => project.id === activeProjectId) ?? null,
     [projects, activeProjectId],
   );
+
+  // ============================================================
+  // STORAGE
+  // ============================================================
 
   useEffect(() => {
     saveChats(chats);
@@ -114,9 +131,7 @@ export default function App() {
   // ============================================================
 
   function handleNewChat() {
-    setIsSettingsOpen(false);
-    setIsSkillsOpen(false);
-    setIsTasksOpen(false);
+    setActivePage("chat");
 
     const chat = createChat(activeProjectId);
 
@@ -126,9 +141,7 @@ export default function App() {
   }
 
   function handleSelectChat(chatId: string) {
-    setIsSettingsOpen(false);
-    setIsSkillsOpen(false);
-    setIsTasksOpen(false);
+    setActivePage("chat");
 
     setActiveChatId(chatId);
 
@@ -198,9 +211,7 @@ export default function App() {
   // ============================================================
 
   function handleSelectProject(projectId: string) {
-    setIsSettingsOpen(false);
-    setIsSkillsOpen(false);
-    setIsTasksOpen(false);
+    setActivePage("chat");
 
     setActiveProjectId(projectId);
 
@@ -284,9 +295,7 @@ export default function App() {
     setActiveProjectId(project.id);
 
     setIsProjectModalOpen(false);
-    setIsSettingsOpen(false);
-    setIsSkillsOpen(false);
-    setIsTasksOpen(false);
+    setActivePage("chat");
 
     const chat = createChat(project.id);
 
@@ -347,23 +356,14 @@ export default function App() {
   // ============================================================
 
   function handleOpenSettings(section: SettingsSection = "general") {
-    setIsSkillsOpen(false);
-    setIsTasksOpen(false);
-
     setSettingsSection(section);
-    setIsSettingsOpen(true);
+    setActivePage("settings");
+    setIsProjectModalOpen(false);
   }
 
   function handleSelectSettingsSection(section: SettingsSection) {
-    setIsSkillsOpen(false);
-    setIsTasksOpen(false);
-
     setSettingsSection(section);
-    setIsSettingsOpen(true);
-  }
-
-  function handleCloseSettings() {
-    setIsSettingsOpen(false);
+    setActivePage("settings");
   }
 
   // ============================================================
@@ -371,14 +371,17 @@ export default function App() {
   // ============================================================
 
   function handleOpenSkills() {
-    setIsSettingsOpen(false);
-    setIsTasksOpen(false);
-
-    setIsSkillsOpen(true);
+    setActivePage("skills");
+    setIsProjectModalOpen(false);
   }
 
-  function handleCloseSkills() {
-    setIsSkillsOpen(false);
+  // ============================================================
+  // EXTENSIONS
+  // ============================================================
+
+  function handleOpenExtensions() {
+    setActivePage("extensions");
+    setIsProjectModalOpen(false);
   }
 
   // ============================================================
@@ -386,15 +389,8 @@ export default function App() {
   // ============================================================
 
   function handleOpenTasks() {
-    setIsSettingsOpen(false);
-    setIsSkillsOpen(false);
+    setActivePage("tasks");
     setIsProjectModalOpen(false);
-
-    setIsTasksOpen(true);
-  }
-
-  function handleCloseTasks() {
-    setIsTasksOpen(false);
   }
 
   // ============================================================
@@ -402,10 +398,7 @@ export default function App() {
   // ============================================================
 
   function handleOpenProjectModal() {
-    setIsSettingsOpen(false);
-    setIsSkillsOpen(false);
-    setIsTasksOpen(false);
-
+    setActivePage("chat");
     setIsProjectModalOpen(true);
   }
 
@@ -415,74 +408,77 @@ export default function App() {
 
   const hasContent = chats.length > 0 || projects.length > 0;
 
-  /*
-   * وقتی Skills باز است:
-   *
-   * - Sidebar توسط SkillsPage مدیریت می‌شود
-   * - Settings render نمی‌شود
-   * - Skills کل صفحه را می‌گیرد
-   */
-  if (isSkillsOpen) {
-    return <SkillsPage onBack={handleCloseSkills} />;
-  }
+  function renderMainContent() {
+    if (activePage === "settings") {
+      return <SettingsPage section={settingsSection} />;
+    }
 
-  /*
-   * وقتی Tasks باز است:
-   *
-   * - TasksPage کل صفحه را می‌گیرد
-   * - Sidebar داخل TasksPage مدیریت می‌شود
-   * - Chat و Settings render نمی‌شوند
-   */
-  if (isTasksOpen) {
-    return <TasksPage onBack={handleCloseTasks} />;
-  }
+    if (activePage === "skills") {
+      return <SkillsPage />;
+    }
 
-  return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#0d0f10] text-[#e7e9e8]">
-      <Sidebar
-        chats={chats}
-        projects={projects}
-        activeChatId={activeChatId}
-        activeProjectId={activeProjectId}
-        onNewChat={handleNewChat}
-        onSelectChat={handleSelectChat}
-        onDeleteChat={handleDeleteChat}
-        onRenameChat={handleRenameChat}
-        onToggleChatPin={handleToggleChatPin}
-        onSelectProject={handleSelectProject}
-        onDeleteProject={handleDeleteProject}
-        onRenameProject={handleRenameProject}
-        onToggleProjectPin={handleToggleProjectPin}
-        onNewProject={handleOpenProjectModal}
-        onOpenSettings={handleOpenSettings}
-        isSettingsOpen={isSettingsOpen}
-        settingsSection={settingsSection}
-        onSelectSettingsSection={handleSelectSettingsSection}
-        onCloseSettings={handleCloseSettings}
-        isSkillsOpen={isSkillsOpen}
-        onOpenSkills={handleOpenSkills}
-        onCloseSkills={handleCloseSkills}
-        isTasksOpen={isTasksOpen}
-        onOpenTasks={handleOpenTasks}
-        onCloseTasks={handleCloseTasks}
-      />
+    if (activePage === "tasks") {
+      return <TasksPage />;
+    }
 
-      {isSettingsOpen ? (
-        <SettingsPage section={settingsSection} onBack={handleCloseSettings} />
-      ) : hasContent ? (
+    if (activePage === "extensions") {
+      return <ExtensionsPage />;
+    }
+
+    if (hasContent) {
+      return (
         <ChatView
           chat={activeChat}
           projectName={activeProject?.name ?? null}
           onSendMessage={handleSendMessage}
         />
-      ) : (
-        <main className="flex min-w-0 flex-1">
-          <EmptyState
-            onNewChat={handleNewChat}
-            onNewProject={handleOpenProjectModal}
-          />
+      );
+    }
+
+    return (
+      <EmptyState
+        onNewChat={handleNewChat}
+        onNewProject={handleOpenProjectModal}
+      />
+    );
+  }
+
+  // ============================================================
+  // APP
+  // ============================================================
+
+  return (
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-[#fafafa] text-[#111111]">
+      <TitleBar />
+
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+        <Sidebar
+          chats={chats}
+          projects={projects}
+          activeChatId={activeChatId}
+          activeProjectId={activeProjectId}
+          activePage={activePage}
+          onNewChat={handleNewChat}
+          onSelectChat={handleSelectChat}
+          onDeleteChat={handleDeleteChat}
+          onRenameChat={handleRenameChat}
+          onToggleChatPin={handleToggleChatPin}
+          onSelectProject={handleSelectProject}
+          onDeleteProject={handleDeleteProject}
+          onRenameProject={handleRenameProject}
+          onToggleProjectPin={handleToggleProjectPin}
+          onNewProject={handleOpenProjectModal}
+          onOpenSettings={handleOpenSettings}
+          onSelectSettingsSection={handleSelectSettingsSection}
+          onOpenSkills={handleOpenSkills}
+          onOpenExtensions={handleOpenExtensions}
+          onOpenTasks={handleOpenTasks}
+        />
+
+        <main className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+          {renderMainContent()}
         </main>
-      )}
+      </div>
 
       {isProjectModalOpen && (
         <NewProjectModal
