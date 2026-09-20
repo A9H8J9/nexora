@@ -1,0 +1,14 @@
+{
+  "name": "nexora",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "desktop": "bun run --cwd apps/desktop tauri dev",
+    "desktop:build": "bun run --cwd apps/desktop tauri build",
+    "cli": "bun run --cwd apps/cli dev",
+    "cli:start": "bun run --cwd apps/cli start"
+  }
+}
