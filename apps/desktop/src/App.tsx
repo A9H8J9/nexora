@@ -10,6 +10,8 @@ import ExtensionsPage from "./pages/ExtensionsPage";
 import { loadChats, loadProjects, saveChats, saveProjects } from "./storage";
 import type { Chat, Message, Project } from "./types";
 import TitleBar from "./components/TitleBar";
+import UpdateNotification from "./components/UpdateNotification";
+import { useUpdater } from "./hooks/useUpdater";
 
 export type SettingsSection =
   | "general"
@@ -73,6 +75,9 @@ function createMessage(role: Message["role"], content: string): Message {
 }
 
 export default function App() {
+    const updater = useUpdater();
+
+    const [isUpdateDismissed, setIsUpdateDismissed] = useState(false);
   const [chats, setChats] = useState<Chat[]>(() => loadChats());
 
   const [projects, setProjects] = useState<Project[]>(() => loadProjects());
@@ -446,7 +451,10 @@ export default function App() {
   // ============================================================
   // APP
   // ============================================================
-
+  const showUpdateNotification =
+    !isUpdateDismissed &&
+    updater.status !== "idle" &&
+    updater.status !== "checking";
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-[#fafafa] text-[#111111]">
       <TitleBar />
@@ -484,6 +492,20 @@ export default function App() {
         <NewProjectModal
           onClose={() => setIsProjectModalOpen(false)}
           onCreate={handleCreateProject}
+        />
+      )}
+      {showUpdateNotification && (
+        <UpdateNotification
+          status={updater.status}
+          update={updater.update}
+          progress={updater.progress}
+          error={updater.error}
+          onInstall={updater.installUpdate}
+          onRetry={() => {
+            setIsUpdateDismissed(false);
+            updater.checkForUpdate();
+          }}
+          onDismiss={() => setIsUpdateDismissed(true)}
         />
       )}
     </div>
